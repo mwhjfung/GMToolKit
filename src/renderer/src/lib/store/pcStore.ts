@@ -233,6 +233,7 @@ interface PcState {
   addPc: (pc: Omit<PcUnit, 'id'>) => string
   updatePc: (id: string, patch: Partial<PcUnit>) => void
   removePc: (id: string) => void
+  reorderPcs: (from: number, to: number) => void
   setSlotMax: (id: string, level: number, max: number) => void
   useSlot: (id: string, level: number) => void
   restoreSlot: (id: string, level: number) => void
@@ -275,6 +276,16 @@ export const usePcStore = create<PcState>((set, get) => {
 
     removePc: (id) => {
       set((s) => ({ pcs: s.pcs.filter((p) => p.id !== id) }))
+      persist()
+    },
+
+    reorderPcs: (from, to) => {
+      set((s) => {
+        const pcs = [...s.pcs]
+        const [moved] = pcs.splice(from, 1)
+        pcs.splice(to, 0, moved)
+        return { pcs }
+      })
       persist()
     },
 
