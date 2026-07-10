@@ -176,7 +176,7 @@ function ActionsBlock({ pc }: { pc: PcUnit }): JSX.Element {
               </button>
             </div>
             {a.description && (
-              <p className="mt-1 text-xs leading-snug text-ink-muted">{a.description}</p>
+              <p className="mt-1 whitespace-pre-line text-xs leading-snug text-ink-muted">{a.description}</p>
             )}
             <div className="mt-1.5 flex items-center gap-2 text-xs text-ink-muted">
               <span>Uses</span>

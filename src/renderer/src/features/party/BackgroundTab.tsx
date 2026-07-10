@@ -302,7 +302,7 @@ export function BackgroundTab({ pc }: { pc: PcUnit }): JSX.Element {
             )}
 
             {bgData.description && (
-              <p className="line-clamp-3 text-sm text-ink-muted">{bgData.description}</p>
+              <p className="line-clamp-3 whitespace-pre-line text-sm text-ink-muted">{bgData.description}</p>
             )}
           </div>
         ) : !linkedEntry && (

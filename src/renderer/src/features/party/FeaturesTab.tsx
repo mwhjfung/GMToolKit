@@ -554,7 +554,7 @@ export function FeaturesTab({ pc }: { pc: PcUnit }): JSX.Element {
                       </p>
                     )}
                     {f.description && (
-                      <p className={cn('text-xs italic text-ink-faint', libDesc ? 'mt-1.5 border-t border-border pt-1.5' : 'mt-1.5')}>
+                      <p className={cn('whitespace-pre-line text-xs italic text-ink-faint', libDesc ? 'mt-1.5 border-t border-border pt-1.5' : 'mt-1.5')}>
                         {f.description}
                       </p>
                     )}

@@ -115,7 +115,7 @@ function StatBlockList({ entries }: { entries: StatBlockEntry[] }): JSX.Element 
   return (
     <div className="space-y-2">
       {entries.map((e, i) => (
-        <p key={`${e.name}-${i}`} className="text-sm leading-relaxed text-ink-muted">
+        <p key={`${e.name}-${i}`} className="whitespace-pre-line text-sm leading-relaxed text-ink-muted">
           {e.name && <span className="font-semibold italic text-ink">{e.name}. </span>}
           {e.desc}
         </p>
@@ -380,7 +380,7 @@ function FeaturesList({ features }: { features: ClassFeature[] }): JSX.Element |
   return (
     <div className="space-y-2">
       {sorted.map((f, i) => (
-        <p key={`${f.level}-${f.name}-${i}`} className="text-sm leading-relaxed text-ink-muted">
+        <p key={`${f.level}-${f.name}-${i}`} className="whitespace-pre-line text-sm leading-relaxed text-ink-muted">
           <span className="font-semibold text-ink">
             Lvl {f.level} · {f.name}.{' '}
           </span>
