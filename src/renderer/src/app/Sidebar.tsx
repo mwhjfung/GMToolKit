@@ -11,6 +11,7 @@ import {
   Eye,
   EyeOff
 } from 'lucide-react'
+import logo from '@/assets/logo.png'
 import { CampaignSwitcher } from './CampaignSwitcher'
 import { GlobalSearch } from '@/components/GlobalSearch'
 import { useUiStore } from '@/lib/store/uiStore'
@@ -49,8 +50,8 @@ export function Sidebar(): JSX.Element {
             </button>
           ) : (
             <>
-              <div className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-accent" />
+              <div className="flex items-center gap-1">
+                <img src={logo} alt="" className="h-5 w-5 rounded" />
                 <span className="text-sm font-semibold tracking-wide text-ink">GM TOOLKIT</span>
               </div>
               <button type="button" className="icon-btn" onClick={toggle} title="Collapse sidebar">
