@@ -10,7 +10,7 @@ interface TemplateSelectorProps {
 
 export function TemplateSelector({ onPick, onClose }: TemplateSelectorProps): JSX.Element {
   return (
-    <div className="panel w-[560px]">
+    <div className="panel w-[560px] max-w-full">
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <h2 className="text-sm font-semibold text-ink">New entry — choose a template</h2>
         <button type="button" className="icon-btn" onClick={onClose}>

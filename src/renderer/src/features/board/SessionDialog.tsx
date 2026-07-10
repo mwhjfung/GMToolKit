@@ -52,7 +52,7 @@ export function SessionDialog({ mode, session, onClose }: SessionDialogProps): J
 
   return (
     <div className="fixed inset-0 z-40 flex items-start justify-center bg-black/50 p-8">
-      <div className="panel mt-[8vh] w-[420px]" onClick={(e) => e.stopPropagation()}>
+      <div className="panel mt-[8vh] w-[420px] max-w-full" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <h2 className="text-sm font-semibold text-ink">
             {mode === 'add' ? 'New session' : 'Edit session'}

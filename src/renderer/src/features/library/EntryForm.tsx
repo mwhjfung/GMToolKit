@@ -536,7 +536,7 @@ export function EntryForm({ type, entry, onClose, onSaved, review }: EntryFormPr
   const data = draft.data as unknown as Record<string, unknown>
 
   return (
-    <div className="panel flex max-h-[86vh] w-[640px] flex-col">
+    <div className="panel flex max-h-[86vh] w-[640px] max-w-full flex-col">
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <h2 className="text-sm font-semibold text-ink">
           {review ? `Import · ${template.label}` : `${isEdit ? 'Edit' : 'New'} ${template.label}`}

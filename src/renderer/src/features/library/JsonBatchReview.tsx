@@ -67,7 +67,7 @@ export function JsonBatchReview({
 
   return (
     <div className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-black/50 p-8">
-      <div className="panel mt-[4vh] w-[600px]" onClick={(e) => e.stopPropagation()}>
+      <div className="panel mt-[4vh] w-[600px] max-w-full" onClick={(e) => e.stopPropagation()}>
         {/* header */}
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <div>

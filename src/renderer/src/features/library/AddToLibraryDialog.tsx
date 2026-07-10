@@ -31,7 +31,7 @@ export function AddToLibraryDialog({
     <div
       className="fixed inset-0 z-40 flex items-start justify-center bg-black/50 p-8"
     >
-      <div className="panel mt-[4vh] w-[560px]" onClick={(e) => e.stopPropagation()}>
+      <div className="panel mt-[4vh] w-[560px] max-w-full" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <h2 className="text-sm font-semibold text-ink">Add to library</h2>
           <button type="button" className="icon-btn" onClick={onClose}>

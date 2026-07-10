@@ -175,7 +175,7 @@ function AddCombatantModal({ onClose }: { onClose: () => void }): JSX.Element {
       className="fixed inset-0 z-40 flex items-start justify-center bg-black/50 p-8"
     >
       <div
-        className="panel mt-[8vh] flex h-[72vh] w-[820px] flex-col"
+        className="panel mt-[8vh] flex h-[72vh] w-[820px] max-w-full flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

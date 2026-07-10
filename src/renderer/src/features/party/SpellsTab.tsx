@@ -68,7 +68,7 @@ function AddSpellDialog({ pc, onClose }: { pc: PcUnit; onClose: () => void }): J
       className="fixed inset-0 z-40 flex items-start justify-center bg-black/50 p-8"
     >
       <div
-        className="panel mt-[8vh] flex max-h-[80vh] w-[460px] flex-col"
+        className="panel mt-[8vh] flex max-h-[80vh] w-[460px] max-w-full flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-border px-4 py-3">

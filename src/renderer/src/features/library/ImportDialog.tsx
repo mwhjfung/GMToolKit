@@ -101,7 +101,7 @@ export function ImportDialog(): JSX.Element {
         ) : phase === 'json-review' ? (
           <JsonBatchReview drafts={drafts} sourceName={source} onClose={closeImport} />
         ) : (
-          <div className="panel w-[520px]">
+          <div className="panel w-[520px] max-w-full">
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
               <h2 className="text-sm font-semibold text-ink">Import</h2>
               <button type="button" className="icon-btn" onClick={closeImport}>

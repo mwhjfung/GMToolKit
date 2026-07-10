@@ -58,7 +58,7 @@ export function LearnedCorrectionsModal({ onClose }: { onClose: () => void }): J
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-8"
     >
       <div
-        className="panel flex h-[70vh] w-[680px] flex-col"
+        className="panel flex h-[70vh] w-[680px] max-w-full flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
