@@ -1,5 +1,5 @@
 import { db } from '@/lib/db/db'
-import { getAllContent } from '@/lib/db/content'
+import { getAllContent, invalidateHaystack } from '@/lib/db/content'
 import type { ContentEntry } from '@/types/content'
 
 interface ExportBundle {
@@ -39,6 +39,7 @@ export async function importContentFromFile(file: File): Promise<number> {
   // Imported entries are treated as custom so they remain editable.
   const normalised = valid.map((e) => ({ ...e, source: 'custom' as const }))
   await db.content.bulkPut(normalised)
+  invalidateHaystack()
   return normalised.length
 }
 

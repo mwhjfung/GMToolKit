@@ -27,14 +27,17 @@ export async function bulkPutContent(entries: ContentEntry[]): Promise<void> {
 }
 
 export async function deleteContent(id: string): Promise<void> {
+  invalidateHaystack(id)
   await db.content.delete(id)
 }
 
 export async function clearSrd(): Promise<void> {
+  invalidateHaystack()
   await db.content.where('source').equals('srd').delete()
 }
 
 export async function clearAllContent(): Promise<void> {
+  invalidateHaystack()
   await db.content.clear()
 }
 
@@ -45,6 +48,12 @@ export interface ContentFilter {
 }
 
 const haystackCache = new Map<string, { stamp: number; text: string }>()
+
+/** Drop cached haystacks — pass an id, or nothing to clear all (e.g. after a bulk import). */
+export function invalidateHaystack(id?: string): void {
+  if (id === undefined) haystackCache.clear()
+  else haystackCache.delete(id)
+}
 
 /** Lowercase searchable text for an entry: name, summary, tags, plus any
  * string-array data values (spell classes, weapon properties, …) and the
