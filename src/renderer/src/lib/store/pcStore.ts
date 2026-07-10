@@ -230,7 +230,7 @@ interface PcState {
   pcs: PcUnit[]
   loaded: boolean
   load: () => Promise<void>
-  addPc: (pc: Omit<PcUnit, 'id'>) => void
+  addPc: (pc: Omit<PcUnit, 'id'>) => string
   updatePc: (id: string, patch: Partial<PcUnit>) => void
   removePc: (id: string) => void
   setSlotMax: (id: string, level: number, max: number) => void
@@ -262,8 +262,10 @@ export const usePcStore = create<PcState>((set, get) => {
     },
 
     addPc: (pc) => {
-      set((s) => ({ pcs: [...s.pcs, { ...pc, id: uuid() }] }))
+      const id = uuid()
+      set((s) => ({ pcs: [...s.pcs, { ...pc, id }] }))
       persist()
+      return id
     },
 
     updatePc: (id, patch) => {

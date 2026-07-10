@@ -39,6 +39,36 @@ function Panel({ children, className }: { children: React.ReactNode; className?:
   )
 }
 
+function StatTile({
+  label,
+  value,
+  editing,
+  raw,
+  onChange
+}: {
+  label: string
+  value: string | number
+  editing?: boolean
+  raw?: number
+  onChange?: (n: number) => void
+}): JSX.Element {
+  return (
+    <div className="flex flex-col items-center rounded-lg border border-border bg-surface-2 py-2">
+      <div className="text-[9px] font-semibold uppercase tracking-wider text-ink-muted">{label}</div>
+      {editing && onChange ? (
+        <input
+          type="number"
+          className="w-14 rounded bg-surface px-1 py-0.5 text-center text-xl font-bold text-ink focus:outline-none"
+          value={raw}
+          onChange={(e) => onChange(Number(e.target.value))}
+        />
+      ) : (
+        <div className="text-xl font-bold text-ink">{value}</div>
+      )}
+    </div>
+  )
+}
+
 function SectionLabel({ children }: { children: React.ReactNode }): JSX.Element {
   return (
     <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-ink-muted">
@@ -170,7 +200,23 @@ function ActionsBlock({ pc }: { pc: PcUnit }): JSX.Element {
               ) : (
                 <input className="input flex-1" placeholder="Action name" value={a.name} onChange={(e) => patch(a.id, { name: e.target.value })} />
               )}
-              <span className="chip shrink-0 capitalize">{a.type}</span>
+              <select
+                value={a.type}
+                onChange={(e) => patch(a.id, { type: e.target.value as ActionType })}
+                title="Action type"
+                className="chip shrink-0 cursor-pointer appearance-none bg-surface-2 pr-4 capitalize focus:border-accent focus:outline-none"
+                style={{
+                  backgroundImage:
+                    "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")",
+                  backgroundRepeat: 'no-repeat',
+                  backgroundPosition: 'right 4px center'
+                }}
+              >
+                <option value="action">Action</option>
+                <option value="bonus">Bonus action</option>
+                <option value="reaction">Reaction</option>
+                <option value="other">Other</option>
+              </select>
               <button type="button" className="icon-btn shrink-0 hover:text-danger" onClick={() => remove(a.id)}>
                 <Trash2 size={14} />
               </button>
@@ -249,7 +295,7 @@ function TempHpPie({ value, max }: { value: number; max: number }): JSX.Element 
   )
 }
 
-export function SheetView({ pc }: { pc: PcUnit }): JSX.Element {
+export function SheetView({ pc, editing }: { pc: PcUnit; editing?: boolean }): JSX.Element {
   const updatePc = usePcStore((s) => s.updatePc)
   const longRestOne = usePcStore((s) => s.longRestOne)
   const shortRestOne = usePcStore((s) => s.shortRestOne)
@@ -321,7 +367,34 @@ export function SheetView({ pc }: { pc: PcUnit }): JSX.Element {
                 <div key={a.key} className="flex flex-col items-center rounded-md border border-border bg-surface py-2">
                   <div className="text-[9px] font-bold uppercase tracking-wider text-ink-muted">{a.label}</div>
                   <div className="text-xl font-bold text-ink">{fmtMod(mod)}</div>
-                  <div className="mt-0.5 rounded-full border border-border px-2 text-xs text-ink-muted">{score}</div>
+                  {editing ? (
+                    <>
+                      <input
+                        type="number"
+                        className="mt-0.5 w-12 rounded border border-border bg-surface-2 px-1 py-0.5 text-center text-xs text-ink focus:border-accent focus:outline-none"
+                        value={score}
+                        onChange={(e) =>
+                          updatePc(pc.id, { abilities: { ...pc.abilities, [a.key]: Number(e.target.value) } })
+                        }
+                      />
+                      <label className="mt-1 flex cursor-pointer items-center gap-1 text-[9px] text-ink-muted">
+                        <input
+                          type="checkbox"
+                          checked={pc.saveProf.includes(a.key)}
+                          onChange={() =>
+                            updatePc(pc.id, {
+                              saveProf: pc.saveProf.includes(a.key)
+                                ? pc.saveProf.filter((x) => x !== a.key)
+                                : [...pc.saveProf, a.key]
+                            })
+                          }
+                        />
+                        save
+                      </label>
+                    </>
+                  ) : (
+                    <div className="mt-0.5 rounded-full border border-border px-2 text-xs text-ink-muted">{score}</div>
+                  )}
                 </div>
               )
             })}
@@ -408,13 +481,30 @@ export function SheetView({ pc }: { pc: PcUnit }): JSX.Element {
         <div className="space-y-1.5">
           {SKILLS.map((sk) => {
             const prof = pc.skillProf.includes(sk.key)
-            return (
-              <div key={sk.key} className="flex items-center gap-1.5 text-xs">
+            const row = (
+              <>
                 <span className={cn('h-2 w-2 shrink-0 rounded-full border', prof ? 'border-accent bg-accent' : 'border-border-strong')} />
                 <span className="w-6 shrink-0 font-semibold uppercase text-ink-muted">{sk.ability}</span>
-                <span className={cn('flex-1 truncate', prof ? 'font-medium text-ink' : 'text-ink-muted')}>{sk.label}</span>
+                <span className={cn('flex-1 truncate text-left', prof ? 'font-medium text-ink' : 'text-ink-muted')}>{sk.label}</span>
                 <span className="w-6 text-right font-medium text-ink">{fmtMod(skillMod(pc.abilities, sk, prof, pc.level))}</span>
-              </div>
+              </>
+            )
+            return editing ? (
+              <button
+                key={sk.key}
+                type="button"
+                title="Toggle proficiency"
+                className="flex w-full items-center gap-1.5 rounded px-1 py-0.5 text-xs hover:bg-surface-3"
+                onClick={() =>
+                  updatePc(pc.id, {
+                    skillProf: prof ? pc.skillProf.filter((k) => k !== sk.key) : [...pc.skillProf, sk.key]
+                  })
+                }
+              >
+                {row}
+              </button>
+            ) : (
+              <div key={sk.key} className="flex items-center gap-1.5 text-xs">{row}</div>
             )
           })}
         </div>
@@ -446,17 +536,12 @@ export function SheetView({ pc }: { pc: PcUnit }): JSX.Element {
 
         {/* top combat stats */}
         <div className="grid grid-cols-4 gap-2">
-          {[
-            { label: 'AC', value: ac },
-            { label: 'Initiative', value: fmtMod(initiative) },
-            { label: 'Speed', value: `${speed} ft` },
-            { label: 'Proficiency', value: fmtMod(pb) }
-          ].map(({ label, value }) => (
-            <div key={label} className="flex flex-col items-center rounded-lg border border-border bg-surface-2 py-2">
-              <div className="text-[9px] font-semibold uppercase tracking-wider text-ink-muted">{label}</div>
-              <div className="text-xl font-bold text-ink">{value}</div>
-            </div>
-          ))}
+          <StatTile label="AC" value={ac} editing={editing} raw={pc.ac}
+            onChange={(n) => updatePc(pc.id, { ac: n })} />
+          <StatTile label="Initiative" value={fmtMod(initiative)} />
+          <StatTile label="Speed" value={`${speed} ft`} editing={editing} raw={pc.speed}
+            onChange={(n) => updatePc(pc.id, { speed: n })} />
+          <StatTile label="Proficiency" value={fmtMod(pb)} />
         </div>
 
         {/* HP */}
@@ -541,14 +626,39 @@ export function SheetView({ pc }: { pc: PcUnit }): JSX.Element {
         )}
 
         {/* Spell slots */}
-        {activeLevels.length > 0 && (
+        {(editing || activeLevels.length > 0) && (
           <Panel>
             <SectionLabel>Spell slots</SectionLabel>
-            <div className="space-y-1">
-              {activeLevels.map((s) => (
-                <SlotPips key={s.level} pc={pc} level={s.level} />
-              ))}
-            </div>
+            {editing ? (
+              <div className="grid grid-cols-3 gap-2">
+                {pc.slots.map((s) => (
+                  <label key={s.level} className="flex items-center gap-2 text-sm">
+                    <span className="w-7 text-xs text-ink-muted">L{s.level}</span>
+                    <input
+                      className="input w-14 px-1 text-center"
+                      type="number"
+                      min={0}
+                      max={9}
+                      value={s.max}
+                      onChange={(e) => {
+                        const max = Math.max(0, Math.min(Number(e.target.value), 9))
+                        updatePc(pc.id, {
+                          slots: pc.slots.map((sl) =>
+                            sl.level === s.level ? { ...sl, max, current: Math.min(sl.current, max) } : sl
+                          )
+                        })
+                      }}
+                    />
+                  </label>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {activeLevels.map((s) => (
+                  <SlotPips key={s.level} pc={pc} level={s.level} />
+                ))}
+              </div>
+            )}
           </Panel>
         )}
 

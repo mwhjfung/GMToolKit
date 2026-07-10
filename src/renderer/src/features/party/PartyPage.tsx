@@ -1,25 +1,31 @@
 import { useEffect, useState } from 'react'
-import { Plus, Users, Download } from 'lucide-react'
+import { Plus, Users, Download, Upload } from 'lucide-react'
 import { Page } from '@/components/Page'
 import { EmptyState } from '@/components/EmptyState'
-import { usePcStore, type PcUnit } from '@/lib/store/pcStore'
+import { usePcStore, newPc } from '@/lib/store/pcStore'
 import { useUiStore } from '@/lib/store/uiStore'
 import { exportCharacters } from '@/lib/data/partyData'
 import { CharacterSheet } from './CharacterSheet'
-import { CharacterDialog } from './CharacterDialog'
+import { ImportCharactersDialog } from './ImportCharactersDialog'
 import { cn } from '@/lib/cn'
-
-type DialogState = { mode: 'add' } | { mode: 'edit'; pc: PcUnit } | null
 
 export function PartyPage(): JSX.Element {
   const pcs = usePcStore((s) => s.pcs)
+  const addPc = usePcStore((s) => s.addPc)
   const activePcId = useUiStore((s) => s.activePcId)
   const setActivePcId = useUiStore((s) => s.setActivePcId)
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [dialog, setDialog] = useState<DialogState>(null)
+  const [importOpen, setImportOpen] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [status, setStatus] = useState('')
 
   const selected = pcs.find((p) => p.id === selectedId) ?? pcs[0] ?? null
+
+  const handleAdd = (): void => {
+    const id = addPc(newPc())
+    setSelectedId(id)
+    setEditingId(id)
+  }
 
   useEffect(() => {
     if (!activePcId) return
@@ -52,7 +58,11 @@ export function PartyPage(): JSX.Element {
               Export
             </button>
           )}
-          <button type="button" className="btn-accent" onClick={() => setDialog({ mode: 'add' })}>
+          <button type="button" className="btn-ghost" onClick={() => setImportOpen(true)}>
+            <Upload size={15} />
+            Import
+          </button>
+          <button type="button" className="btn-accent" onClick={handleAdd}>
             <Plus size={15} />
             Add character
           </button>
@@ -72,7 +82,7 @@ export function PartyPage(): JSX.Element {
             title="No characters yet"
             description="Add your players' characters to keep their full sheets at hand — or import a JSON export."
           >
-            <button type="button" className="btn-accent" onClick={() => setDialog({ mode: 'add' })}>
+            <button type="button" className="btn-accent" onClick={handleAdd}>
               <Plus size={16} />
               Add character
             </button>
@@ -101,7 +111,10 @@ export function PartyPage(): JSX.Element {
                 <CharacterSheet
                   key={selected.id}
                   pc={selected}
-                  onEdit={() => setDialog({ mode: 'edit', pc: selected })}
+                  editing={editingId === selected.id}
+                  onToggleEdit={() =>
+                    setEditingId((cur) => (cur === selected.id ? null : selected.id))
+                  }
                 />
               )}
             </div>
@@ -109,13 +122,8 @@ export function PartyPage(): JSX.Element {
         )}
       </div>
 
-      {dialog && (
-        <CharacterDialog
-          mode={dialog.mode}
-          pc={dialog.mode === 'edit' ? dialog.pc : undefined}
-          onClose={() => setDialog(null)}
-          onDone={(m) => setStatus(m)}
-        />
+      {importOpen && (
+        <ImportCharactersDialog onClose={() => setImportOpen(false)} onDone={(m) => setStatus(m)} />
       )}
     </Page>
   )
