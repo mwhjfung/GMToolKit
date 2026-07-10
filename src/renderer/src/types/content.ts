@@ -76,6 +76,10 @@ export interface MonsterData {
   resistances?: string[]
   immunities?: string[]
   cr: string
+  spellcastingAbility?: string
+  spellSaveDc?: string
+  spellAttackBonus?: string
+  spellsByLevel?: LeveledSpells[]
   traits: StatBlockEntry[]
   actions: StatBlockEntry[]
   bonusActions: StatBlockEntry[]

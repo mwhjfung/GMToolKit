@@ -253,6 +253,34 @@ function MonsterDetail({ entry, hideAddToInitiative }: { entry: ContentOfType<'m
         )}
       </div>
 
+      {(d.spellcastingAbility || (d.spellsByLevel?.length ?? 0) > 0) && (
+        <Section title="Spellcasting">
+          {(d.spellcastingAbility || d.spellSaveDc || d.spellAttackBonus) && (
+            <p className="text-sm text-ink-muted">
+              {[
+                d.spellcastingAbility && `Ability: ${d.spellcastingAbility}`,
+                d.spellSaveDc && `Save DC ${d.spellSaveDc}`,
+                d.spellAttackBonus && `${d.spellAttackBonus} to hit`
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </p>
+          )}
+          <div className="space-y-1">
+            {(d.spellsByLevel ?? []).map((row) => (
+              <Field key={row.level} label={row.level === 0 ? 'Cantrips' : `Level ${row.level}`}>
+                <RefList
+                  names={row.spells}
+                  type="spell"
+                  allowCreate={entry.source === 'custom'}
+                  world={entry.world}
+                />
+              </Field>
+            ))}
+          </div>
+        </Section>
+      )}
+
       {d.traits.length > 0 && (
         <Section title="Traits">
           <StatBlockList entries={d.traits} />

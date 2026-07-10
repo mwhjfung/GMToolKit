@@ -143,6 +143,10 @@ export const TEMPLATES: Record<ContentType, TemplateDef> = {
       { key: 'resistances', label: 'Damage resistances', kind: 'tags', options: DAMAGE_TYPES },
       { key: 'immunities', label: 'Damage immunities', kind: 'tags', options: DAMAGE_TYPES },
       { key: 'cr', label: 'Challenge', kind: 'text', placeholder: '13' },
+      { key: 'spellcastingAbility', label: 'Spellcasting ability', kind: 'select', options: ['Strength', 'Dexterity', 'Constitution', 'Intelligence', 'Wisdom', 'Charisma'] },
+      { key: 'spellSaveDc', label: 'Spell save DC', kind: 'text', placeholder: '15' },
+      { key: 'spellAttackBonus', label: 'Spell attack bonus', kind: 'text', placeholder: '+7' },
+      { key: 'spellsByLevel', label: 'Spells by level', kind: 'leveledSpells' },
       { key: 'traits', label: 'Traits', kind: 'statblocks' },
       { key: 'actions', label: 'Actions', kind: 'statblocks' },
       { key: 'bonusActions', label: 'Bonus actions', kind: 'statblocks' },
@@ -344,6 +348,7 @@ export function makeNewEntry(type: ContentType): ContentEntry {
           resistances: [],
           immunities: [],
           cr: '',
+          spellsByLevel: [],
           traits: [],
           actions: [],
           bonusActions: [],
@@ -499,6 +504,10 @@ export function collectReferences(entry: ContentEntry): ContentRef[] {
       break
     case 'worldentry':
       for (const c of entry.data.connections) refs.push({ type: 'worldentry', name: c })
+      break
+    case 'monster':
+      for (const row of entry.data.spellsByLevel ?? [])
+        for (const s of row.spells) refs.push({ type: 'spell', name: s })
       break
   }
   return refs.filter((r) => r.name.trim().length > 0)
