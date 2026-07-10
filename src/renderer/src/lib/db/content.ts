@@ -44,6 +44,27 @@ export interface ContentFilter {
   query?: string
 }
 
+const haystackCache = new Map<string, { stamp: number; text: string }>()
+
+/** Lowercase searchable text for an entry: name, summary, tags, plus any
+ * string-array data values (spell classes, weapon properties, …) and the
+ * creature type. Cached per entry so per-keystroke filtering stays fast. */
+export function entryHaystack(e: ContentEntry): string {
+  const cached = haystackCache.get(e.id)
+  if (cached && cached.stamp === e.updatedAt) return cached.text
+  const parts: string[] = [e.name, e.summary, ...e.tags]
+  const data = e.data as unknown as Record<string, unknown>
+  for (const v of Object.values(data)) {
+    if (Array.isArray(v)) {
+      for (const x of v) if (typeof x === 'string') parts.push(x)
+    }
+  }
+  if (typeof data.creatureType === 'string') parts.push(data.creatureType)
+  const text = parts.join('\n').toLowerCase()
+  haystackCache.set(e.id, { stamp: e.updatedAt, text })
+  return text
+}
+
 /** Pure in-memory filter so the UI can load content once and filter per keystroke. */
 export function filterContent(items: ContentEntry[], filter: ContentFilter): ContentEntry[] {
   let result = items
@@ -53,12 +74,7 @@ export function filterContent(items: ContentEntry[], filter: ContentFilter): Con
   }
   if (filter.query && filter.query.trim()) {
     const q = filter.query.toLowerCase().trim()
-    result = result.filter(
-      (i) =>
-        i.name.toLowerCase().includes(q) ||
-        i.summary.toLowerCase().includes(q) ||
-        i.tags.some((t) => t.toLowerCase().includes(q))
-    )
+    result = result.filter((i) => entryHaystack(i).includes(q))
   }
   return [...result].sort((a, b) => a.name.localeCompare(b.name))
 }

@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { useContentStore } from '@/lib/store/contentStore'
 import { usePcStore } from '@/lib/store/pcStore'
 import { useUiStore } from '@/lib/store/uiStore'
+import { entryHaystack } from '@/lib/db/content'
 import { TYPE_META } from '@/components/typeMeta'
 import { cn } from '@/lib/cn'
 import type { ContentType } from '@/types/content'
@@ -65,7 +66,7 @@ export function GlobalSearch(): JSX.Element | null {
       }))
 
     const contentResults: Result[] = items
-      .filter((i) => i.name.toLowerCase().includes(term) || i.summary.toLowerCase().includes(term))
+      .filter((i) => entryHaystack(i).includes(term))
       .slice(0, 40)
       .map((i) => ({
         id: i.id,
