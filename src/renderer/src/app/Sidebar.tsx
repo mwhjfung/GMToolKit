@@ -7,7 +7,9 @@ import {
   AudioLines,
   PanelLeftClose,
   PanelLeftOpen,
-  Search
+  Search,
+  Eye,
+  EyeOff
 } from 'lucide-react'
 import { CampaignSwitcher } from './CampaignSwitcher'
 import { GlobalSearch } from '@/components/GlobalSearch'
@@ -49,7 +51,7 @@ export function Sidebar(): JSX.Element {
             <>
               <div className="flex items-center gap-2">
                 <span className="h-2 w-2 rounded-full bg-accent" />
-                <span className="text-sm font-semibold tracking-wide text-ink">DM COMMAND</span>
+                <span className="text-sm font-semibold tracking-wide text-ink">GM TOOLKIT</span>
               </div>
               <button type="button" className="icon-btn" onClick={toggle} title="Collapse sidebar">
                 <PanelLeftClose size={16} />
@@ -106,19 +108,28 @@ export function Sidebar(): JSX.Element {
           <button
             type="button"
             onClick={toggleFeed}
-            title="Transcribe"
+            title={feedOpen ? 'Hide voice feed' : 'Show voice feed'}
             className={cn(
               itemBase,
               collapsed ? 'justify-center px-0' : 'gap-3 px-3',
-              feedOpen || listening
-                ? 'bg-accent/15 text-accent'
-                : 'text-ink-muted hover:bg-surface-3 hover:text-ink'
+              'text-ink-muted hover:bg-surface-3 hover:text-ink'
             )}
           >
             <AudioLines size={17} className={listening ? 'text-accent' : ''} />
-            {!collapsed && 'Transcribe'}
-            {!collapsed && listening && (
-              <span className="ml-auto h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />
+            {!collapsed && (
+              <span className="flex flex-1 items-center justify-between">
+                Transcribe
+                <span className="flex items-center gap-1.5">
+                  {listening && (
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />
+                  )}
+                  {feedOpen ? (
+                    <Eye size={14} className="text-ink-muted" />
+                  ) : (
+                    <EyeOff size={14} className="text-ink-muted" />
+                  )}
+                </span>
+              </span>
             )}
           </button>
 

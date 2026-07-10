@@ -5,7 +5,8 @@ import { CONTENT_TYPE_LABELS, type ContentEntry, type ContentType } from '@/type
 
 const TYPE_ORDER: ContentType[] = [
   'spell', 'monster', 'item', 'weapon', 'condition',
-  'class', 'subclass', 'feat', 'background', 'proficiency', 'worldentry', 'homebrew'
+  'class', 'subclass', 'feat', 'background', 'proficiency', 'worldentry', 'homebrew',
+  'action'
 ]
 
 export function JsonBatchReview({

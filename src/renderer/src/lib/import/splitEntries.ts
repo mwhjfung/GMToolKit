@@ -318,7 +318,8 @@ function guessType(name: string, body: string): ContentType {
     worldentry: 0,
     feat: 0,
     background: 0,
-    homebrew: 0
+    homebrew: 0,
+    action: 0
   }
   if (/\bcasting time\b/.test(t)) score.spell += 2
   if (/\b\d+(?:st|nd|rd|th)[-\s]level\b/.test(t) || /\bcantrip\b/.test(t)) score.spell += 2

@@ -136,15 +136,17 @@ function ActionsBlock({ pc }: { pc: PcUnit }): JSX.Element {
 
   return (
     <div>
-      <div className="mb-2 flex items-center gap-0.5 overflow-x-auto border-b border-border">
+      <div className="mb-2 flex flex-wrap gap-1">
         {ACTION_TABS.map((t) => (
           <button
             key={t.key}
             type="button"
             onClick={() => setTab(t.key)}
             className={cn(
-              'whitespace-nowrap border-b-2 px-2 py-1.5 text-xs font-medium transition-colors',
-              tab === t.key ? 'border-accent text-ink' : 'border-transparent text-ink-muted hover:text-ink'
+              'shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
+              tab === t.key
+                ? 'border-accent/60 bg-accent/15 text-accent'
+                : 'border-border text-ink-muted hover:border-border-strong hover:text-ink'
             )}
           >
             {t.label}
@@ -305,9 +307,9 @@ export function SheetView({ pc }: { pc: PcUnit }): JSX.Element {
   const activeLevels = pc.slots.filter((s) => s.max > 0)
 
   return (
-    <div className="flex h-full min-h-0 gap-0">
+    <div className="flex h-full min-h-0 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
       {/* ── LEFT PANEL: abilities + saves + passives + senses + proficiencies ── */}
-      <div className="flex w-72 shrink-0 flex-col gap-3 overflow-y-auto border-r border-border p-3">
+      <div className="flex flex-col gap-3 border-b border-border p-3 lg:w-72 lg:shrink-0 lg:overflow-y-auto lg:border-b-0 lg:border-r">
         {/* Ability scores */}
         <Panel>
           <SectionLabel>Ability scores</SectionLabel>
@@ -401,7 +403,7 @@ export function SheetView({ pc }: { pc: PcUnit }): JSX.Element {
       </div>
 
       {/* ── CENTER PANEL: skills ── */}
-      <div className="flex w-56 shrink-0 flex-col overflow-y-auto border-r border-border p-3">
+      <div className="flex flex-col border-b border-border p-3 lg:w-56 lg:shrink-0 lg:overflow-y-auto lg:border-b-0 lg:border-r">
         <SectionLabel>Skills</SectionLabel>
         <div className="space-y-1.5">
           {SKILLS.map((sk) => {
@@ -419,7 +421,7 @@ export function SheetView({ pc }: { pc: PcUnit }): JSX.Element {
       </div>
 
       {/* ── RIGHT PANEL: combat stats + HP + actions ── */}
-      <div className="flex min-w-0 flex-1 flex-col gap-3 overflow-y-auto p-3">
+      <div className="flex flex-col gap-3 p-3 lg:min-w-0 lg:flex-1 lg:overflow-y-auto">
         {/* rest buttons */}
         <div className="flex items-center gap-2">
           <button type="button" className="btn-outline flex-1 text-xs" onClick={() => shortRestOne(pc.id)}>

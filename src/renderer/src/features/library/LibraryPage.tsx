@@ -105,7 +105,9 @@ export function LibraryPage(): JSX.Element {
   const typesPresent = useMemo(() => {
     const set = new Set<ContentType>()
     tabItems.forEach((i) => set.add(i.type))
-    return (Object.keys(CONTENT_TYPE_LABELS) as ContentType[]).filter((t) => set.has(t))
+    return (Object.keys(CONTENT_TYPE_LABELS) as ContentType[]).filter(
+      (t) => set.has(t) && t !== 'homebrew'
+    )
   }, [tabItems])
 
   // Track whether filter chip strip can scroll left/right — must be after typesPresent

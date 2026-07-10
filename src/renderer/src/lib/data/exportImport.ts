@@ -3,7 +3,7 @@ import { getAllContent } from '@/lib/db/content'
 import type { ContentEntry } from '@/types/content'
 
 interface ExportBundle {
-  app: 'dm-command'
+  app: 'gm-toolkit'
   version: 1
   exportedAt: string
   content: ContentEntry[]
@@ -14,7 +14,7 @@ export async function exportCustomContent(): Promise<number> {
   const all = await getAllContent()
   const content = all.filter((c) => c.source === 'custom')
   const bundle: ExportBundle = {
-    app: 'dm-command',
+    app: 'gm-toolkit',
     version: 1,
     exportedAt: new Date().toISOString(),
     content
@@ -23,7 +23,7 @@ export async function exportCustomContent(): Promise<number> {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `dm-command-content-${new Date().toISOString().slice(0, 10)}.json`
+  a.download = `gm-toolkit-content-${new Date().toISOString().slice(0, 10)}.json`
   a.click()
   URL.revokeObjectURL(url)
   return content.length
@@ -34,7 +34,7 @@ export async function importContentFromFile(file: File): Promise<number> {
   const text = await file.text()
   const parsed = JSON.parse(text) as ExportBundle | ContentEntry[]
   const entries = Array.isArray(parsed) ? parsed : parsed.content
-  if (!Array.isArray(entries)) throw new Error('That file does not look like DM Command content.')
+  if (!Array.isArray(entries)) throw new Error('That file does not look like GM Toolkit content.')
   const valid = entries.filter((e) => e && e.id && e.type && e.name)
   // Imported entries are treated as custom so they remain editable.
   const normalised = valid.map((e) => ({ ...e, source: 'custom' as const }))

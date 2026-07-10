@@ -33,13 +33,15 @@ export function Toast(): JSX.Element | null {
           aria-live="assertive"
           aria-atomic="true"
           key={appMsg}
-          className="animate-toast-in pointer-events-auto flex items-center gap-3 rounded-lg border border-accent bg-accent px-4 py-2.5 text-sm font-medium text-white shadow-2xl"
+          className="animate-toast-in pointer-events-auto flex items-center gap-3 rounded-lg border border-accent bg-accent px-4 py-2.5 text-sm font-medium shadow-2xl"
+          style={{ color: 'rgb(var(--accent-fg))' }}
         >
           <span>{appMsg}</span>
           <button
             type="button"
             aria-label="Dismiss notification"
-            className="ml-1 shrink-0 rounded-full p-0.5 opacity-70 hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+            className="ml-1 shrink-0 rounded-full p-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-current/60"
+            style={{ color: 'rgb(var(--accent-fg))' }}
             onClick={hideApp}
           >
             <X size={13} aria-hidden="true" />

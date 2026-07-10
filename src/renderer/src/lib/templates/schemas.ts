@@ -271,10 +271,21 @@ export const TEMPLATES: Record<ContentType, TemplateDef> = {
       { key: 'category', label: 'Category', kind: 'text', placeholder: 'House rule, variant, etc.' },
       { key: 'description', label: 'Description', kind: 'markdown' }
     ]
+  },
+  action: {
+    type: 'action',
+    label: 'Action',
+    description: 'A combat action, bonus action, reaction or other ability.',
+    fields: [
+      { key: 'range', label: 'Range / reach', kind: 'text', placeholder: '5 ft.' },
+      { key: 'description', label: 'Description', kind: 'markdown' }
+    ]
   }
 }
 
-export const CREATABLE_TYPES = Object.keys(TEMPLATES) as ContentType[]
+export const CREATABLE_TYPES: ContentType[] = (Object.keys(TEMPLATES) as ContentType[]).filter(
+  (t) => t !== 'homebrew'
+)
 
 const uuid = (): string =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -383,6 +394,8 @@ export function makeNewEntry(type: ContentType): ContentEntry {
       return { ...base, type, data: { description: '', feature: '', featureDescription: '' } }
     case 'homebrew':
       return { ...base, type, data: { category: '', description: '' } }
+    case 'action':
+      return { ...base, type, data: { range: '', description: '' } }
   }
 }
 
@@ -430,6 +443,8 @@ export function recomputeSummary(entry: ContentEntry): string {
       return entry.data.feature ? `Feature: ${entry.data.feature}` : 'Background'
     case 'homebrew':
       return entry.data.category ? entry.data.category : 'Homebrew'
+    case 'action':
+      return entry.data.range ? `Range: ${entry.data.range}` : 'Action'
   }
 }
 

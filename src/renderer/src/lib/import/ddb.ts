@@ -1,6 +1,22 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { coercePc, type PcUnit, type FeatureCategory, type PcSpell, type PcAction, type ActionType } from '@/lib/store/pcStore'
 import { abilityMod, SKILLS, type AbilityKey } from '@/lib/dnd/character'
+import srdRaw from '@/lib/api/srd-data.json'
+
+/** Spell name (lowercased) → spell level, from the bundled SRD data. Used to
+ *  resolve the real level of subclass-granted spells, whose D&D Beyond feature
+ *  tables only list the *class* level at which they're gained, not the spell's. */
+const SRD_SPELL_LEVEL = new Map<string, number>()
+/** Spell name (lowercased) → canonical, properly-cased name, from SRD data.
+ *  Lets us tidy the lowercase names scraped out of D&D Beyond feature tables. */
+const SRD_SPELL_NAME = new Map<string, string>()
+for (const e of srdRaw as Array<{ type?: string; name?: string; data?: { level?: number } }>) {
+  if (e?.type === 'spell' && typeof e?.name === 'string') {
+    const key = e.name.trim().toLowerCase()
+    SRD_SPELL_NAME.set(key, e.name.trim())
+    if (typeof e?.data?.level === 'number') SRD_SPELL_LEVEL.set(key, e.data.level)
+  }
+}
 
 const uuid = (): string =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -173,29 +189,85 @@ function mapDdb(data: any): Partial<PcUnit> {
   for (const f of data?.feats ?? [])
     pushFeat(f?.definition?.name, f?.definition?.description ?? f?.definition?.snippet, 'feat')
 
-  // Spells — from classSpells (primary) + per-category spells object.
+  // Spells — from classSpells (per-class known/prepared) plus every key in the
+  // spells object (race/class/feat/background/item/…). Iterating all keys keeps
+  // us forward-compatible with new DDB categories, and falling back across the
+  // definition/spell name + level fields means a spell is never silently dropped
+  // when its entry is shaped differently than expected.
   const spellSeen = new Set<string>()
   const spells: PcSpell[] = []
-  const addSpell = (name: string, level: number, prepared: boolean): void => {
-    const key = (name ?? '').toLowerCase().trim()
+  // Levels seen in this payload's structured spell data — preferred over SRD
+  // when resolving a granted spell's level (covers homebrew the PC also has).
+  const knownLevel = new Map<string, number>()
+  const addSpell = (name: unknown, level: unknown, prepared: boolean): void => {
+    const clean = typeof name === 'string' ? name.trim() : ''
+    const key = clean.toLowerCase()
     if (!key || spellSeen.has(key)) return
     spellSeen.add(key)
-    spells.push({ id: uuid(), name: name.trim(), level, prepared })
+    spells.push({ id: uuid(), name: clean, level: num(level, 0), prepared })
   }
-  for (const cs of data?.classSpells ?? []) {
-    for (const sp of cs?.spells ?? []) {
-      const def = sp?.definition
-      if (!def?.name) continue
-      addSpell(def.name, num(def.level, 0), Boolean(sp.prepared || sp.alwaysPrepared || sp.countsAsKnownSpell))
-    }
-  }
-  for (const cat of ['race', 'class', 'feat', 'background', 'item', 'known']) {
-    const list = (data?.spells as any)?.[cat]
-    if (!Array.isArray(list)) continue
+  const addFromList = (list: unknown): void => {
+    if (!Array.isArray(list)) return
     for (const sp of list) {
       const def = sp?.definition
-      if (!def?.name) continue
-      addSpell(def.name, num(def.level, 0), Boolean(sp.prepared || sp.alwaysPrepared))
+      const name = def?.name ?? sp?.name
+      if (!name) continue
+      const lvl = def?.level ?? sp?.level
+      if (typeof name === 'string' && Number.isFinite(Number(lvl))) {
+        knownLevel.set(name.trim().toLowerCase(), num(lvl, 0))
+      }
+      addSpell(name, lvl, Boolean(sp?.prepared || sp?.alwaysPrepared || sp?.countsAsKnownSpell))
+    }
+  }
+  for (const cs of data?.classSpells ?? []) addFromList(cs?.spells)
+  const spellsObj = data?.spells
+  if (spellsObj && typeof spellsObj === 'object') {
+    for (const list of Object.values(spellsObj)) addFromList(list)
+  }
+
+  // Subclass-granted, always-prepared spells (Paladin oath / Cleric domain /
+  // Druid circle …). D&D Beyond doesn't expose these as structured spell
+  // entries — they live only as a text table inside the granting feature's
+  // description, e.g. "Paladin Level Spells 3rd guiding bolt, heroism 5th …".
+  // Parse that table, keep rows up to the character's level in the class, and
+  // resolve each spell's real level from the payload or the bundled SRD data.
+  const resolveLevel = (name: string): number => {
+    const key = name.toLowerCase()
+    return knownLevel.get(key) ?? SRD_SPELL_LEVEL.get(key) ?? 1
+  }
+  const parseGrantedSpells = (descHtml: unknown, classLevel: number): void => {
+    const text = strip(descHtml)
+    if (!text) return
+    // Anchor on the progression table header "<Class> Level Spells <digit>".
+    // Skip "Spell Level Spells" tables (Warlock expanded lists) — those rows are
+    // keyed by spell level, not class level, so the gating below wouldn't apply.
+    const header = text.match(/(\w+)\s+Level\s+Spells?\s+(?=\d)/i)
+    if (!header || header[1].toLowerCase() === 'spell') return
+    const table = text.slice((header.index ?? 0) + header[0].length)
+    const rowRe = /(\d+)(?:st|nd|rd|th)\s+(.+?)(?=\s+\d+(?:st|nd|rd|th)\s|$)/gi
+    let m: RegExpExecArray | null
+    while ((m = rowRe.exec(table))) {
+      if (num(m[1], 99) > classLevel) continue
+      for (const raw of m[2].split(/\s*,\s*/)) {
+        const nm = raw.replace(/[.;:]+$/, '').trim()
+        // Reject sentence fragments — real spell names have no digits/periods
+        // and are short.
+        if (!nm || /[.0-9]/.test(nm) || nm.split(/\s+/).length > 5) continue
+        // Prefer SRD's canonical casing; otherwise title-case the scraped name.
+        const display =
+          SRD_SPELL_NAME.get(nm.toLowerCase()) ??
+          nm.replace(/\b\w/g, (ch) => ch.toUpperCase())
+        addSpell(display, resolveLevel(nm), true)
+      }
+    }
+  }
+  for (const c of classes) {
+    const classLevel = num(c?.level, 0)
+    for (const f of c?.classFeatures ?? []) {
+      const def = f?.definition ?? f
+      const fname = typeof def?.name === 'string' ? def.name : ''
+      if (!/spell/i.test(fname)) continue
+      parseGrantedSpells(def?.description ?? def?.snippet, classLevel)
     }
   }
 

@@ -18,7 +18,7 @@ import { useCombatStore, type CombatUnit } from '@/lib/store/combatStore'
 import { useContentStore } from '@/lib/store/contentStore'
 import { useUiStore } from '@/lib/store/uiStore'
 import { ConditionsCell } from './ConditionsCell'
-import { TypeBadge } from '@/components/ContentBadge'
+import { TypeBadge, SourceTag } from '@/components/ContentBadge'
 import { cn } from '@/lib/cn'
 import type { ContentEntry } from '@/types/content'
 
@@ -84,9 +84,12 @@ function EntryPickCard({
           : 'hover:border-accent/70 hover:bg-accent/5'
       )}
     >
-      <TypeBadge type={entry.type} />
-      <span className="mt-1 w-full truncate font-medium text-ink" title={entry.name}>{entry.name}</span>
-      <span className="w-full truncate text-xs text-ink-muted" title={entry.summary || undefined}>{entry.summary || '—'}</span>
+      <div className="flex min-w-0 items-center gap-2">
+        <TypeBadge type={entry.type} />
+        <SourceTag source={entry.source} homebrew={entry.homebrew} />
+      </div>
+      <span className="mt-1.5 w-full truncate font-medium text-ink" title={entry.name}>{entry.name}</span>
+      <span className="mt-0.5 w-full truncate text-sm text-ink-muted" title={entry.summary || undefined}>{entry.summary || '—'}</span>
     </button>
   )
 }
@@ -170,7 +173,6 @@ function AddCombatantModal({ onClose }: { onClose: () => void }): JSX.Element {
   return (
     <div
       className="fixed inset-0 z-40 flex items-start justify-center bg-black/50 p-8"
-      onClick={onClose}
     >
       <div
         className="panel mt-[8vh] flex h-[72vh] w-[820px] flex-col"

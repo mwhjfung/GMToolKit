@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react'
-import { FolderInput, Tag, ArrowRightLeft, Trash2, Check } from 'lucide-react'
+import { FolderInput, Tag, ArrowRightLeft, Trash2, Check, Wand2 } from 'lucide-react'
 import { TagSelect } from '@/components/TagSelect'
 import { useContentStore, sourceInCampaign } from '@/lib/store/contentStore'
 import { useCampaignStore } from '@/lib/store/campaignStore'
 import { getActiveCampaignId } from '@/lib/store/activeCampaign'
 import { cn } from '@/lib/cn'
 
-type Menu = 'source' | 'tags' | 'campaign' | null
+type Menu = 'source' | 'tags' | 'campaign' | 'homebrew' | null
 
 interface BulkActionBarProps {
   ids: string[]
@@ -27,6 +27,7 @@ export function BulkActionBar({ ids, onClear, onSelectAll, totalShown }: BulkAct
   const bulkRemoveTags = useContentStore((s) => s.bulkRemoveTags)
   const bulkMoveToCampaign = useContentStore((s) => s.bulkMoveToCampaign)
   const bulkRemove = useContentStore((s) => s.bulkRemove)
+  const bulkSetHomebrew = useContentStore((s) => s.bulkSetHomebrew)
   const campaigns = useCampaignStore((s) => s.campaigns)
   const activeId = useCampaignStore((s) => s.activeId)
 
@@ -89,6 +90,10 @@ export function BulkActionBar({ ids, onClear, onSelectAll, totalShown }: BulkAct
       done()
     }
   }
+  const applyHomebrew = async (value: boolean): Promise<void> => {
+    await bulkSetHomebrew(ids, value)
+    done()
+  }
 
   return (
     <div className="shrink-0 border-b border-border bg-surface-2 px-6 py-2">
@@ -127,6 +132,14 @@ export function BulkActionBar({ ids, onClear, onSelectAll, totalShown }: BulkAct
             Move to campaign
           </button>
         )}
+        <button
+          type="button"
+          className={cn(BTN, menu === 'homebrew' && 'bg-surface-3')}
+          onClick={() => toggleMenu('homebrew')}
+        >
+          <Wand2 size={15} />
+          Homebrew
+        </button>
         <button type="button" className={cn(BTN, 'text-danger hover:bg-danger/10')} onClick={() => void applyDelete()}>
           <Trash2 size={15} />
           Delete
@@ -193,6 +206,18 @@ export function BulkActionBar({ ids, onClear, onSelectAll, totalShown }: BulkAct
               {c.name}
             </button>
           ))}
+        </div>
+      )}
+
+      {menu === 'homebrew' && (
+        <div className="mt-2 flex items-center gap-2">
+          <button type="button" className={BTN} onClick={() => void applyHomebrew(true)}>
+            <Wand2 size={14} />
+            Mark as homebrew
+          </button>
+          <button type="button" className={BTN} onClick={() => void applyHomebrew(false)}>
+            Remove homebrew
+          </button>
         </div>
       )}
     </div>

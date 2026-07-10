@@ -168,7 +168,6 @@ export function CharacterDialog({
   return (
     <div
       className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-black/50 p-8"
-      onClick={onClose}
     >
       <div className="panel mt-[5vh] w-[580px] max-w-full" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-border px-4 py-3">

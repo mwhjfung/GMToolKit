@@ -575,6 +575,20 @@ function BackgroundDetail({ entry }: { entry: Extract<ContentEntry, { type: 'bac
   )
 }
 
+function ActionDetail({ entry }: { entry: Extract<ContentEntry, { type: 'action' }> }): JSX.Element {
+  const d = entry.data
+  return (
+    <div className="space-y-4">
+      {d.range && <Field label="Range / reach">{d.range}</Field>}
+      {d.description && (
+        <Section title="Description">
+          <Markdown>{d.description}</Markdown>
+        </Section>
+      )}
+    </div>
+  )
+}
+
 function HomebrewDetail({ entry }: { entry: Extract<ContentEntry, { type: 'homebrew' }> }): JSX.Element {
   const d = entry.data
   return (
@@ -615,6 +629,8 @@ function DetailBody({ entry, hideAddToInitiative }: { entry: ContentEntry; hideA
       return <BackgroundDetail entry={entry} />
     case 'homebrew':
       return <HomebrewDetail entry={entry} />
+    case 'action':
+      return <ActionDetail entry={entry} />
   }
 }
 
@@ -624,7 +640,7 @@ export function ContentDetail({ entry, hideAddToInitiative }: { entry: ContentEn
       <div className="space-y-2">
         <div className="flex items-center gap-2">
           <TypeBadge type={entry.type} />
-          <SourceTag source={entry.source} />
+          <SourceTag source={entry.source} homebrew={entry.homebrew} />
         </div>
         <h2 className="text-xl font-semibold text-ink">{entry.name}</h2>
         {entry.world && <p className="text-sm text-ink-muted">{entry.world}</p>}

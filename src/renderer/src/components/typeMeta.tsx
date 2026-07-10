@@ -11,6 +11,7 @@ import {
   Star,
   BookOpen,
   Wand2,
+  Swords,
   type LucideProps
 } from 'lucide-react'
 import type { ComponentType } from 'react'
@@ -37,5 +38,6 @@ export const TYPE_META: Record<ContentType, TypeMeta> = {
   worldentry:  { label: 'World entry', badge: 'bg-fuchsia-500/15 text-fuchsia-700 dark:text-fuchsia-300', accent: 'text-fuchsia-300', icon: Globe2        },
   feat:        { label: 'Feat',        badge: 'bg-yellow-500/15  text-yellow-700  dark:text-yellow-300',  accent: 'text-yellow-300',  icon: Star         },
   background:  { label: 'Background',  badge: 'bg-cyan-500/15    text-cyan-700    dark:text-cyan-300',    accent: 'text-cyan-300',    icon: BookOpen     },
-  homebrew:    { label: 'Homebrew',    badge: 'bg-pink-500/15    text-pink-700    dark:text-pink-300',    accent: 'text-pink-300',    icon: Wand2        }
+  homebrew:    { label: 'Homebrew',    badge: 'bg-pink-500/15    text-pink-700    dark:text-pink-300',    accent: 'text-pink-300',    icon: Wand2        },
+  action:      { label: 'Action',      badge: 'bg-indigo-500/15  text-indigo-700  dark:text-indigo-300',  accent: 'text-indigo-300',  icon: Swords       }
 }

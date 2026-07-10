@@ -56,7 +56,6 @@ export function LearnedCorrectionsModal({ onClose }: { onClose: () => void }): J
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-8"
-      onClick={onClose}
     >
       <div
         className="panel flex h-[70vh] w-[680px] flex-col"

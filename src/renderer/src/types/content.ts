@@ -11,6 +11,7 @@ export type ContentType =
   | 'feat'
   | 'background'
   | 'homebrew'
+  | 'action'
 
 export type ContentSource = 'srd' | 'custom'
 
@@ -30,6 +31,8 @@ export interface ContentCommon {
   sourceId?: string
   /** Open5e slug for SRD entries (used to dedupe on re-sync). */
   slug?: string
+  /** User-marked as homebrew content. */
+  homebrew?: boolean
   createdAt: number
   updatedAt: number
 }
@@ -178,6 +181,11 @@ export interface HomebrewData {
   description: string
 }
 
+export interface ActionData {
+  range?: string
+  description: string
+}
+
 interface TypedData {
   spell: SpellData
   monster: MonsterData
@@ -191,6 +199,7 @@ interface TypedData {
   feat: FeatData
   background: BackgroundData
   homebrew: HomebrewData
+  action: ActionData
 }
 
 export type ContentEntry = {
@@ -211,5 +220,6 @@ export const CONTENT_TYPE_LABELS: Record<ContentType, string> = {
   worldentry: 'World entry',
   feat: 'Feat',
   background: 'Background',
-  homebrew: 'Homebrew'
+  homebrew: 'Homebrew',
+  action: 'Action'
 }

@@ -128,6 +128,7 @@ interface ContentState {
   bulkSetSource: (ids: string[], sourceName: string) => Promise<void>
   bulkMoveToCampaign: (ids: string[], campaignId: string) => Promise<void>
   bulkRemove: (ids: string[]) => Promise<void>
+  bulkSetHomebrew: (ids: string[], value: boolean) => Promise<void>
   bulkImport: (entries: ContentEntry[]) => Promise<void>
   pin: (id: string) => void
   unpin: (id: string) => void
@@ -353,6 +354,19 @@ export const useContentStore = create<ContentState>((set, get) => ({
     const items = get().items.filter((e) => !idset.has(e.id))
     set({ items, pinnedIds, visibleItems: computeVisible(items, get().sources) })
     persistPins(pinnedIds)
+  },
+
+  bulkSetHomebrew: async (ids, value) => {
+    const idset = new Set(ids)
+    const changed: ContentEntry[] = []
+    const items = get().items.map((e) => {
+      if (!idset.has(e.id)) return e
+      const ne = { ...e, homebrew: value, updatedAt: Date.now() }
+      changed.push(ne)
+      return ne
+    })
+    await Promise.all(changed.map((e) => putContent(e)))
+    set({ items, visibleItems: computeVisible(items, get().sources) })
   },
 
   bulkImport: async (entries) => {

@@ -1,4 +1,4 @@
-import type { ContentEntry, ItemData, FeatData, BackgroundData, SpellData, HomebrewData } from '@/types/content'
+import type { ContentEntry, ItemData, FeatData, BackgroundData, SpellData, ActionData } from '@/types/content'
 import type { PcUnit, PcItem, PcFeature, PcSpell, PcAction } from '@/lib/store/pcStore'
 
 // ---------------------------------------------------------------------------
@@ -205,33 +205,60 @@ export function autoLinkAndSeed(
   })
 
   // ---------------------------------------------------------------------------
-  // 5. Actions — link each to a library entry (feat / homebrew search first),
-  //    creating a homebrew stub if nothing matches.
+  // 5. Actions — link each to an "Action" library entry, tagged with its
+  //    category (Action / Bonus action / Reaction / Other / Limited) so the
+  //    distinction survives in the library. Every entry also carries the
+  //    "Action" tag for grouping. Legacy homebrew/feat stubs of the same name
+  //    (from older imports) are upgraded in place to Action entries.
   // ---------------------------------------------------------------------------
 
   const updatedActions: PcAction[] = (pc.actions ?? []).map((action) => {
     if (!action.name) return action
-    const typeLabel =
-      action.type === 'action' ? 'Action' :
-      action.type === 'bonus' ? 'Bonus Action' :
-      action.type === 'reaction' ? 'Reaction' : 'Ability'
-    const contentId = resolveId(['feat', 'homebrew', 'class', 'subclass'], 'homebrew', action.name, (id) => {
-      const data: HomebrewData = { category: typeLabel, description: action.description }
-      const entry: ContentEntry = {
-        id,
-        type: 'homebrew',
-        source: 'custom',
-        name: action.name,
-        summary: action.description.slice(0, 120).trim() || action.name,
-        tags: [],
-        world: sourceName,
-        createdAt: now,
+    const categoryTag =
+      action.type === 'bonus' ? 'Bonus action' :
+      action.type === 'reaction' ? 'Reaction' :
+      action.type === 'other' ? 'Other / Limited' : null
+    const tags = categoryTag ? ['Action', categoryTag] : ['Action']
+
+    // Reuse an existing Action entry if one already matches.
+    const existingAction = findInPool(pool, ['action'], action.name)
+    if (existingAction) return { ...action, contentId: existingAction.id }
+
+    // Otherwise upgrade a legacy stub (homebrew/feat/class) in place — keep its
+    // id so the bulkPut overwrites the old record instead of duplicating it.
+    const legacy = findInPool(pool, ['homebrew', 'feat', 'class', 'subclass'], action.name)
+    if (legacy) {
+      const upgraded: ContentEntry = {
+        ...legacy,
+        type: 'action',
+        tags: Array.from(new Set([...legacy.tags, ...tags])),
+        summary: legacy.summary || action.description.slice(0, 120).trim() || action.name,
         updatedAt: now,
-        data
+        data: { description: action.description }
       }
-      return entry
-    })
-    return { ...action, contentId }
+      const idx = pool.indexOf(legacy)
+      if (idx >= 0) pool[idx] = upgraded
+      newEntries.push(upgraded)
+      return { ...action, contentId: legacy.id }
+    }
+
+    // Nothing matched — create a fresh Action entry.
+    const id = crypto.randomUUID()
+    const data: ActionData = { description: action.description }
+    const entry: ContentEntry = {
+      id,
+      type: 'action',
+      source: 'custom',
+      name: action.name,
+      summary: action.description.slice(0, 120).trim() || action.name,
+      tags,
+      world: sourceName,
+      createdAt: now,
+      updatedAt: now,
+      data
+    }
+    register(entry)
+    return { ...action, contentId: id }
   })
 
   // ---------------------------------------------------------------------------

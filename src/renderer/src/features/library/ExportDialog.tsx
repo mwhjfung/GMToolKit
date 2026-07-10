@@ -64,7 +64,6 @@ export function ExportDialog({ onClose }: { onClose: () => void }): JSX.Element 
   return (
     <div
       className="fixed inset-0 z-40 flex items-start justify-center bg-black/50 p-8"
-      onClick={onClose}
     >
       <div
         className="panel mt-[8vh] w-[420px] max-w-full"
@@ -80,7 +79,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }): JSX.Element 
         <div className="p-4">
           <p className="mb-3 text-sm text-ink-muted">
             Choose which sources to include. Exports as a JSON file that can be re-imported into any
-            DM Command library.
+            GM Toolkit library.
           </p>
 
           {sourceOptions.length === 0 ? (

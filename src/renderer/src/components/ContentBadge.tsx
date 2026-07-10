@@ -2,7 +2,8 @@ import { TYPE_META } from './typeMeta'
 import type { ContentSource, ContentType } from '@/types/content'
 import { cn } from '@/lib/cn'
 
-export function TypeBadge({ type, className }: { type: ContentType; className?: string }): JSX.Element {
+export function TypeBadge({ type, className }: { type: ContentType; className?: string }): JSX.Element | null {
+  if (type === 'homebrew') return null
   const meta = TYPE_META[type]
   const Icon = meta.icon
   return (
@@ -19,15 +20,22 @@ export function TypeBadge({ type, className }: { type: ContentType; className?: 
   )
 }
 
-export function SourceTag({ source }: { source: ContentSource }): JSX.Element {
-  return (
-    <span
-      className={cn(
-        'text-[10px] font-semibold uppercase tracking-wider',
-        source === 'srd' ? 'text-ink-muted' : 'text-accent'
-      )}
-    >
-      {source === 'srd' ? 'SRD' : 'Custom'}
-    </span>
-  )
+export function SourceTag({
+  source,
+  homebrew
+}: {
+  source: ContentSource
+  homebrew?: boolean
+}): JSX.Element | null {
+  if (source === 'srd') {
+    return (
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-ink-muted">SRD</span>
+    )
+  }
+  if (homebrew) {
+    return (
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-accent">HOMEBREW</span>
+    )
+  }
+  return null
 }

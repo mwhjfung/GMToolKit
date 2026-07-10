@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   LayoutGrid, Maximize2, Minimize2, Plus, Archive, Pencil,
-  X, Check, Trash2, RotateCcw, Users, Copy, Search, PanelRightClose
+  X, Check, Trash2, RotateCcw, Users, Copy, Search, PanelRightClose, Pin, SquareCheck
 } from 'lucide-react'
 import {
   DndContext,
@@ -18,7 +18,7 @@ import { Page } from '@/components/Page'
 import { EmptyState } from '@/components/EmptyState'
 import { ContentCard } from '@/components/ContentCard'
 import { ContentDetail } from '@/components/ContentDetail'
-import { TypeBadge } from '@/components/ContentBadge'
+import { TypeBadge, SourceTag } from '@/components/ContentBadge'
 import { useContentStore } from '@/lib/store/contentStore'
 import { useSessionStore, type DashSession } from '@/lib/store/sessionStore'
 import { useCombatStore } from '@/lib/store/combatStore'
@@ -383,12 +383,14 @@ function NotesDashSection({
 
 function PinPickCard({
   entry,
-  selected,
+  checked,
+  preview,
   pinned,
   onSelect
 }: {
   entry: ContentEntry
-  selected: boolean
+  checked: boolean
+  preview: boolean
   pinned: boolean
   onSelect: (e: ContentEntry) => void
 }): JSX.Element {
@@ -399,17 +401,31 @@ function PinPickCard({
       onClick={() => onSelect(entry)}
       className={cn(
         'panel flex w-full flex-col gap-1 overflow-hidden p-3 text-left focus:outline-none',
-        selected
-          ? 'border-accent bg-accent/5'
-          : 'hover:border-accent/70 hover:bg-accent/5'
+        preview
+          ? 'border-accent bg-accent/10'
+          : checked
+            ? 'border-accent/60 bg-accent/5'
+            : 'hover:border-accent/40 hover:bg-accent/5'
       )}
     >
       <div className="flex items-center justify-between gap-1">
-        <TypeBadge type={entry.type} />
-        {pinned && <Check size={12} className="shrink-0 text-accent" />}
+        <div className="flex min-w-0 items-center gap-2">
+          <TypeBadge type={entry.type} />
+          <SourceTag source={entry.source} homebrew={entry.homebrew} />
+        </div>
+        <div className="flex items-center gap-1">
+          {pinned && (
+            <Pin
+              size={12}
+              className="shrink-0 text-ink-muted"
+              style={{ fill: 'currentColor' }}
+            />
+          )}
+          {checked && <SquareCheck size={13} className="shrink-0 text-accent" />}
+        </div>
       </div>
-      <span className="mt-1 w-full truncate font-medium text-ink" title={entry.name}>{entry.name}</span>
-      <span className="w-full truncate text-xs text-ink-muted">{entry.summary || '—'}</span>
+      <span className="mt-1.5 w-full truncate font-medium text-ink" title={entry.name}>{entry.name}</span>
+      <span className="mt-0.5 w-full truncate text-sm text-ink-muted" title={entry.summary || undefined}>{entry.summary || '—'}</span>
     </button>
   )
 }
@@ -421,14 +437,17 @@ function PinAddModal({ onClose }: { onClose: () => void }): JSX.Element {
   const [query, setQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState<ContentType | 'all'>('all')
   const [sourceFilter, setSourceFilter] = useState('all')
-  const [selectedEntry, setSelectedEntry] = useState<ContentEntry | null>(null)
+  const [pendingIds, setPendingIds] = useState<Set<string>>(new Set())
+  const [previewEntry, setPreviewEntry] = useState<ContentEntry | null>(null)
   const searchRef = useRef<HTMLInputElement>(null)
 
   const pinnedSet = useMemo(() => new Set(pinnedIds), [pinnedIds])
 
   const availableTypes = useMemo(() => {
     const present = new Set(allItems.map((i) => i.type))
-    return (Object.keys(CONTENT_TYPE_LABELS) as ContentType[]).filter((t) => present.has(t))
+    return (Object.keys(CONTENT_TYPE_LABELS) as ContentType[]).filter(
+      (t) => present.has(t) && t !== 'homebrew'
+    )
   }, [allItems])
 
   const availableSources = useMemo(() => {
@@ -444,13 +463,19 @@ function PinAddModal({ onClose }: { onClose: () => void }): JSX.Element {
   }, [allItems, query, typeFilter, sourceFilter])
 
   const handleSelect = (entry: ContentEntry): void => {
-    setSelectedEntry((prev) => (prev?.id === entry.id ? null : entry))
+    setPreviewEntry(entry)
+    setPendingIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(entry.id)) next.delete(entry.id)
+      else next.add(entry.id)
+      return next
+    })
   }
 
   const doPin = (closeAfter = false): void => {
-    if (!selectedEntry) return
-    pin(selectedEntry.id)
-    setSelectedEntry(null)
+    if (pendingIds.size === 0) return
+    for (const id of pendingIds) pin(id)
+    setPendingIds(new Set())
     if (closeAfter) {
       onClose()
     } else {
@@ -467,7 +492,6 @@ function PinAddModal({ onClose }: { onClose: () => void }): JSX.Element {
   return (
     <div
       className="fixed inset-0 z-40 flex items-start justify-center bg-black/50 p-8"
-      onClick={onClose}
     >
       <div
         className="panel mt-[8vh] flex h-[72vh] w-[820px] flex-col"
@@ -495,14 +519,14 @@ function PinAddModal({ onClose }: { onClose: () => void }): JSX.Element {
                 placeholder="Search library…"
                 value={query}
                 autoFocus
-                onChange={(e) => { setQuery(e.target.value); setSelectedEntry(null) }}
+                onChange={(e) => setQuery(e.target.value)}
               />
             </div>
             {availableSources.length > 0 && (
               <select
                 className="input h-8 w-auto shrink-0 text-sm"
                 value={sourceFilter}
-                onChange={(e) => { setSourceFilter(e.target.value); setSelectedEntry(null) }}
+                onChange={(e) => setSourceFilter(e.target.value)}
               >
                 <option value="all">All sources</option>
                 {availableSources.map((src) => (
@@ -516,7 +540,7 @@ function PinAddModal({ onClose }: { onClose: () => void }): JSX.Element {
               <button
                 key={t}
                 type="button"
-                onClick={() => { setTypeFilter(t); setSelectedEntry(null) }}
+                onClick={() => setTypeFilter(t)}
                 className={cn(
                   'rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-colors',
                   typeFilter === t
@@ -539,7 +563,8 @@ function PinAddModal({ onClose }: { onClose: () => void }): JSX.Element {
                   <PinPickCard
                     key={entry.id}
                     entry={entry}
-                    selected={selectedEntry?.id === entry.id}
+                    checked={pendingIds.has(entry.id)}
+                    preview={previewEntry?.id === entry.id}
                     pinned={pinnedSet.has(entry.id)}
                     onSelect={handleSelect}
                   />
@@ -552,16 +577,16 @@ function PinAddModal({ onClose }: { onClose: () => void }): JSX.Element {
             )}
           </div>
 
-          {selectedEntry && (
+          {previewEntry && (
             <div className="flex w-[280px] shrink-0 flex-col border-l border-border">
               <div className="flex shrink-0 items-center justify-between border-b border-border px-3 py-2">
                 <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Details</span>
-                <button type="button" className="icon-btn" onClick={() => setSelectedEntry(null)}>
+                <button type="button" className="icon-btn" onClick={() => setPreviewEntry(null)}>
                   <PanelRightClose size={15} />
                 </button>
               </div>
               <div className="min-h-0 flex-1 overflow-y-auto p-4">
-                <ContentDetail entry={selectedEntry} />
+                <ContentDetail entry={previewEntry} />
               </div>
             </div>
           )}
@@ -569,10 +594,13 @@ function PinAddModal({ onClose }: { onClose: () => void }): JSX.Element {
 
         {/* Footer */}
         <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border px-4 py-3">
+          {pendingIds.size > 0 && (
+            <span className="mr-auto text-xs text-ink-muted">{pendingIds.size} selected</span>
+          )}
           <button
             type="button"
             className="btn-ghost"
-            disabled={!selectedEntry}
+            disabled={pendingIds.size === 0}
             onClick={() => doPin(true)}
           >
             Add and close
@@ -580,7 +608,7 @@ function PinAddModal({ onClose }: { onClose: () => void }): JSX.Element {
           <button
             type="button"
             className="btn-accent"
-            disabled={!selectedEntry}
+            disabled={pendingIds.size === 0}
             onClick={() => doPin()}
           >
             <Plus size={14} />

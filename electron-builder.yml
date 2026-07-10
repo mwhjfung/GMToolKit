@@ -1,5 +1,5 @@
-appId: com.fungy.dmcommand
-productName: DM Command
+appId: com.mwhjfung.gmtoolkit
+productName: GM Toolkit
 directories:
   buildResources: build
 publish:
@@ -20,7 +20,7 @@ asar: true
 asarUnpack:
   - resources/**
 win:
-  executableName: dm-command
+  executableName: gm-toolkit
   target:
     - target: nsis
       arch:
@@ -40,6 +40,6 @@ mac:
   category: public.app-category.utilities
   notarize: false
   extendInfo:
-    NSMicrophoneUsageDescription: DM Command listens to your session so it can surface the relevant spell, monster, and item cards as you play.
+    NSMicrophoneUsageDescription: GM Toolkit listens to your session so it can surface the relevant spell, monster, and item cards as you play.
 dmg:
   artifactName: ${name}-${version}.${ext}

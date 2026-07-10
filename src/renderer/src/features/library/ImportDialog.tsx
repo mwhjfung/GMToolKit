@@ -94,7 +94,6 @@ export function ImportDialog(): JSX.Element {
   return (
     <div
       className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-black/50 p-8"
-      onClick={() => phase !== 'review' && closeImport()}
     >
       <div className="mt-[4vh]" onClick={(e) => e.stopPropagation()}>
         {phase === 'review' ? (

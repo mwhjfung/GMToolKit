@@ -47,7 +47,7 @@ export function ContentCard({ entry, dragHandle, onToggleSelect, selected }: Con
         <div className="flex items-start justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2" {...dragHandle}>
             <TypeBadge type={entry.type} />
-            <SourceTag source={entry.source} />
+            <SourceTag source={entry.source} homebrew={entry.homebrew} />
           </div>
           <button
             type="button"

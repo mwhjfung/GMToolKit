@@ -148,7 +148,6 @@ function FeatModal({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-8"
-      onClick={onClose}
     >
       <div className="panel w-[520px] max-w-full" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
@@ -361,7 +360,6 @@ function FeatureModal({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-8"
-      onClick={onClose}
     >
       <div className="panel w-[500px] max-w-full" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-border px-4 py-3">

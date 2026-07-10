@@ -12,7 +12,7 @@ function createWindow(): BrowserWindow {
     show: false,
     backgroundColor: '#08070f',
     autoHideMenuBar: true,
-    title: 'DM Command',
+    title: 'GM Toolkit',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,

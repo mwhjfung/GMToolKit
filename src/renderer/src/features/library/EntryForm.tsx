@@ -610,6 +610,13 @@ export function EntryForm({ type, entry, onClose, onSaved, review }: EntryFormPr
             />
           </div>
         </div>
+        <div className="flex items-center gap-2.5">
+          <Toggle
+            value={Boolean(draft.homebrew)}
+            onChange={(v) => setDraft((d) => ({ ...d, homebrew: v }))}
+          />
+          <span className="text-sm text-ink">Homebrew</span>
+        </div>
 
         {template.fields.map((field) => (
           <div key={field.key}>

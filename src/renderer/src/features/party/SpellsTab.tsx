@@ -66,7 +66,6 @@ function AddSpellDialog({ pc, onClose }: { pc: PcUnit; onClose: () => void }): J
   return (
     <div
       className="fixed inset-0 z-40 flex items-start justify-center bg-black/50 p-8"
-      onClick={onClose}
     >
       <div
         className="panel mt-[8vh] flex max-h-[80vh] w-[460px] flex-col"
@@ -192,21 +191,38 @@ export function SpellsTab({ pc }: { pc: PcUnit }): JSX.Element {
   const remove = (id: string): void =>
     updatePc(pc.id, { spells: pc.spells.filter((s) => s.id !== id) })
 
-  // Group spells by level, ordered 0-9
+  // Group spells by level, ordered 0-9. A leveled (non-cantrip) spell is also
+  // echoed under every higher level the character has slots for — flagged with
+  // its true level so you can see what's castable when up-casting into a bigger
+  // slot. Echoes are derived for display only (the spell is stored once at its
+  // native level), so they carry no prepared/remove controls of their own.
   const groups = useMemo(() => {
-    const map = new Map<number, PcSpell[]>()
+    const slotMax = (lvl: number): number => pc.slots.find((s) => s.level === lvl)?.max ?? 0
+    const map = new Map<number, Array<{ spell: PcSpell; upcastFrom?: number }>>()
+    const push = (lvl: number, entry: { spell: PcSpell; upcastFrom?: number }): void => {
+      const arr = map.get(lvl) ?? []
+      arr.push(entry)
+      map.set(lvl, arr)
+    }
     for (const spell of pc.spells) {
       const lvl = spell.level ?? 0
-      const arr = map.get(lvl) ?? []
-      arr.push(spell)
-      map.set(lvl, arr)
+      push(lvl, { spell })
+      // Up-cast echoes — only for prepared, leveled spells (cantrips don't use slots).
+      if (lvl >= 1 && spell.prepared) {
+        for (let up = lvl + 1; up <= 9; up++) {
+          if (slotMax(up) > 0) push(up, { spell, upcastFrom: lvl })
+        }
+      }
     }
     return [...map.entries()]
       .sort(([a], [b]) => a - b)
-      .map(([level, spells]) => ({
+      .map(([level, entries]) => ({
         level,
         label: LEVEL_LABELS[level] ?? `Level ${level}`,
-        spells: [...spells].sort((a, b) => a.name.localeCompare(b.name)),
+        entries: [...entries].sort(
+          (a, b) =>
+            a.spell.name.localeCompare(b.spell.name) || (a.upcastFrom ?? 0) - (b.upcastFrom ?? 0)
+        ),
         slot: level > 0 ? pc.slots.find((s) => s.level === level) : undefined
       }))
   }, [pc.spells, pc.slots])
@@ -227,7 +243,7 @@ export function SpellsTab({ pc }: { pc: PcUnit }): JSX.Element {
         <p className="py-6 text-sm text-ink-muted">No spells yet.</p>
       ) : (
         <div className="space-y-4">
-          {groups.map(({ level, label, spells, slot }) => (
+          {groups.map(({ level, label, entries, slot }) => (
             <div key={level}>
               {/* Level header */}
               <div className="mb-1.5 flex items-center gap-2">
@@ -248,13 +264,19 @@ export function SpellsTab({ pc }: { pc: PcUnit }): JSX.Element {
 
               {/* Spell rows */}
               <div className="space-y-1">
-                {spells.map((spell) => (
+                {entries.map(({ spell, upcastFrom }) => (
                   <div
-                    key={spell.id}
-                    className="flex items-center gap-2 rounded-md border border-border px-3 py-1.5"
+                    key={upcastFrom != null ? `${spell.id}@${level}` : spell.id}
+                    className={cn(
+                      'flex items-center gap-2 rounded-md border border-border px-3 py-1.5',
+                      upcastFrom != null && 'border-dashed opacity-70'
+                    )}
                   >
-                    {/* Prepared checkbox — cantrips are always available */}
-                    {level > 0 ? (
+                    {/* Prepared checkbox — cantrips are always available; up-cast
+                        echoes mirror their base spell, so they get no checkbox. */}
+                    {upcastFrom != null ? (
+                      <span className="w-4 shrink-0" />
+                    ) : level > 0 ? (
                       <input
                         type="checkbox"
                         checked={spell.prepared}
@@ -280,14 +302,21 @@ export function SpellsTab({ pc }: { pc: PcUnit }): JSX.Element {
                       <span className="min-w-0 flex-1 truncate text-sm text-ink">{spell.name}</span>
                     )}
 
-                    <button
-                      type="button"
-                      className="icon-btn h-6 w-6 shrink-0 hover:text-danger"
-                      title="Remove"
-                      onClick={() => remove(spell.id)}
-                    >
-                      <Trash2 size={13} />
-                    </button>
+                    {/* Up-cast flag — shows the spell's true (lower) level. */}
+                    {upcastFrom != null ? (
+                      <span className="shrink-0 rounded bg-surface-3 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-ink-muted">
+                        {upcastFrom === 0 ? 'Cantrip' : `Lv ${upcastFrom}`}
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        className="icon-btn h-6 w-6 shrink-0 hover:text-danger"
+                        title="Remove"
+                        onClick={() => remove(spell.id)}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
