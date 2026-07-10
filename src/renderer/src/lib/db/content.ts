@@ -31,16 +31,6 @@ export async function deleteContent(id: string): Promise<void> {
   await db.content.delete(id)
 }
 
-export async function clearSrd(): Promise<void> {
-  invalidateHaystack()
-  await db.content.where('source').equals('srd').delete()
-}
-
-export async function clearAllContent(): Promise<void> {
-  invalidateHaystack()
-  await db.content.clear()
-}
-
 export interface ContentFilter {
   source?: ContentSource
   types?: ContentType[]

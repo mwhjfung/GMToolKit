@@ -45,6 +45,7 @@ export async function importContentFromFile(file: File): Promise<number> {
 
 /** Wipe all content and the pinned-board list. Config (voice/LLM settings) is kept. */
 export async function clearAllContent(): Promise<void> {
+  invalidateHaystack()
   await db.content.clear()
   await db.settings.delete('pinnedIds')
 }
