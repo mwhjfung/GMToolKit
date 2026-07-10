@@ -115,6 +115,9 @@ interface RawMonster {
   skills?: Record<string, number>
   senses?: string
   languages?: string
+  damage_vulnerabilities?: string
+  damage_resistances?: string
+  damage_immunities?: string
   challenge_rating?: string
   special_abilities?: RawStatEntry[] | null
   actions?: RawStatEntry[] | null
@@ -238,6 +241,19 @@ function collectSkills(skills?: Record<string, number>): string {
     .join(', ')
 }
 
+/** Open5e damage lists use ';' between qualifier groups, ',' inside them —
+ * e.g. "fire; bludgeoning, piercing, and slashing from nonmagical attacks".
+ * Split on ';' always; split a group on ',' only when it has no qualifier. */
+function parseDamageList(raw: string | undefined): string[] {
+  if (!raw?.trim()) return []
+  return raw.split(';').flatMap((group) => {
+    const g = group.trim()
+    if (!g) return []
+    if (g.includes(' from ')) return [g]
+    return g.split(',').map((s) => s.replace(/^and /, '').trim()).filter(Boolean)
+  })
+}
+
 function mapMonster(r: RawMonster): ContentEntry {
   const ts = now()
   const ac = `${r.armor_class ?? ''}${r.armor_desc ? ` (${r.armor_desc})` : ''}`.trim()
@@ -277,6 +293,9 @@ function mapMonster(r: RawMonster): ContentEntry {
       skills: collectSkills(r.skills) || undefined,
       senses: r.senses || undefined,
       languages: r.languages || undefined,
+      vulnerabilities: parseDamageList(r.damage_vulnerabilities),
+      resistances: parseDamageList(r.damage_resistances),
+      immunities: parseDamageList(r.damage_immunities),
       cr: r.challenge_rating ?? '',
       traits: r.special_abilities ?? [],
       actions: r.actions ?? [],

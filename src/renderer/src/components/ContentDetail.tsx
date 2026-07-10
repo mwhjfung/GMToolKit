@@ -242,6 +242,15 @@ function MonsterDetail({ entry, hideAddToInitiative }: { entry: ContentOfType<'m
         <Field label="Skills">{d.skills}</Field>
         <Field label="Senses">{d.senses}</Field>
         <Field label="Languages">{d.languages}</Field>
+        {(d.vulnerabilities?.length ?? 0) > 0 && (
+          <Field label="Vulnerabilities">{d.vulnerabilities!.join(', ')}</Field>
+        )}
+        {(d.resistances?.length ?? 0) > 0 && (
+          <Field label="Resistances">{d.resistances!.join(', ')}</Field>
+        )}
+        {(d.immunities?.length ?? 0) > 0 && (
+          <Field label="Immunities">{d.immunities!.join(', ')}</Field>
+        )}
       </div>
 
       {d.traits.length > 0 && (

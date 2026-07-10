@@ -72,6 +72,9 @@ export interface MonsterData {
   skills?: string
   senses?: string
   languages?: string
+  vulnerabilities?: string[]
+  resistances?: string[]
+  immunities?: string[]
   cr: string
   traits: StatBlockEntry[]
   actions: StatBlockEntry[]
