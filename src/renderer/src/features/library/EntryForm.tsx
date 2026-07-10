@@ -17,6 +17,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { Markdown } from '@/components/Markdown'
 import { TagSelect } from '@/components/TagSelect'
+import { CommaListInput } from '@/components/CommaListInput'
 import { useContentStore, sourceInCampaign } from '@/lib/store/contentStore'
 import { getActiveCampaignId } from '@/lib/store/activeCampaign'
 import { useUiStore } from '@/lib/store/uiStore'
@@ -398,18 +399,10 @@ function FieldRenderer({
       )
     case 'csv':
       return (
-        <input
-          className="input"
+        <CommaListInput
+          value={Array.isArray(value) ? (value as string[]) : []}
           placeholder={field.placeholder}
-          value={Array.isArray(value) ? (value as string[]).join(', ') : ''}
-          onChange={(e) =>
-            onChange(
-              e.target.value
-                .split(',')
-                .map((s) => s.trim())
-                .filter(Boolean)
-            )
-          }
+          onChange={onChange}
         />
       )
     case 'tag':
@@ -588,16 +581,10 @@ export function EntryForm({ type, entry, onClose, onSaved, review }: EntryFormPr
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="label">Tags</label>
-            <input
-              className="input"
-              value={draft.tags.join(', ')}
-              onChange={(e) =>
-                setDraft((d) => ({
-                  ...d,
-                  tags: e.target.value.split(',').map((s) => s.trim()).filter(Boolean)
-                }))
-              }
+            <CommaListInput
+              value={draft.tags}
               placeholder="comma, separated"
+              onChange={(tags) => setDraft((d) => ({ ...d, tags }))}
             />
           </div>
           <div>
