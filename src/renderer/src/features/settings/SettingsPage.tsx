@@ -9,7 +9,7 @@ import { TYPE_META } from '@/components/typeMeta'
 import { useVoiceStore, type Sensitivity, type SuppressMinutes } from '@/lib/store/voiceStore'
 import { useContentStore } from '@/lib/store/contentStore'
 import { useSettingsStore, LLM_MODELS } from '@/lib/store/settingsStore'
-import { ACCENT_PRESETS, type ThemeMode } from '@/lib/theme'
+import type { ThemeMode } from '@/lib/theme'
 import { CONTENT_TYPE_LABELS, type ContentType } from '@/types/content'
 import { exportCustomContent, importContentFromFile, clearAllContent } from '@/lib/data/exportImport'
 import { LearnedCorrectionsModal } from './LearnedCorrectionsModal'
@@ -60,7 +60,7 @@ function Segmented<T extends string | number>({
           onClick={() => onChange(o.value)}
           className={cn(
             'rounded px-3 py-1 text-sm transition-colors',
-            value === o.value ? 'bg-accent text-black' : 'text-ink-muted hover:text-ink'
+            value === o.value ? 'bg-accent text-accent-fg' : 'text-ink-muted hover:text-ink'
           )}
         >
           {o.label}
@@ -72,12 +72,10 @@ function Segmented<T extends string | number>({
 
 function AppearanceSection(): JSX.Element {
   const themeMode = useSettingsStore((s) => s.themeMode)
-  const accentColor = useSettingsStore((s) => s.accentColor)
   const setThemeMode = useSettingsStore((s) => s.setThemeMode)
-  const setAccentColor = useSettingsStore((s) => s.setAccentColor)
 
   return (
-    <Section title="Appearance" description="Light or dark, and the primary colour.">
+    <Section title="Appearance" description="Light or dark.">
       <Field label="Mode">
         <Segmented<ThemeMode>
           value={themeMode}
@@ -87,35 +85,6 @@ function AppearanceSection(): JSX.Element {
             { value: 'light', label: 'Light' }
           ]}
         />
-      </Field>
-      <Field label="Primary colour">
-        <div className="flex flex-wrap items-center gap-2">
-          {ACCENT_PRESETS.map((c) => (
-            <button
-              key={c}
-              type="button"
-              title={c}
-              onClick={() => setAccentColor(c)}
-              style={{ backgroundColor: c }}
-              className={cn(
-                'h-7 w-7 rounded-full border-2 transition-transform hover:scale-110',
-                accentColor.toLowerCase() === c.toLowerCase() ? 'border-ink' : 'border-transparent'
-              )}
-            />
-          ))}
-          <label className="flex items-center gap-1.5 text-xs text-ink-muted">
-            Custom
-            <input
-              type="color"
-              value={accentColor || '#1fe0ff'}
-              onChange={(e) => setAccentColor(e.target.value)}
-              className="h-7 w-9 cursor-pointer rounded border border-border bg-transparent p-0.5"
-            />
-          </label>
-        </div>
-        <p className="mt-1 text-xs text-ink-muted">
-          Only the primary changes — the rest recolours to match while keeping the theme.
-        </p>
       </Field>
     </Section>
   )

@@ -10,7 +10,7 @@ function createWindow(): BrowserWindow {
     minWidth: 1080,
     minHeight: 680,
     show: false,
-    backgroundColor: '#08070f',
+    backgroundColor: '#140a13',
     autoHideMenuBar: true,
     title: 'GM Toolkit',
     webPreferences: {

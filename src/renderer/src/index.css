@@ -2,45 +2,47 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ---- colour themes (channels are space-separated RGB for Tailwind alpha) ---- */
+/* ---- colour themes (channels are space-separated RGB for Tailwind alpha) ----
+   Palette derived from the GM Toolkit logo: plum #220b1f, pink #ec0a72,
+   purple #702074. */
 :root,
-[data-theme='cyberpunk-dark'] {
+[data-theme='dark'] {
   color-scheme: dark;
-  --bg: 8 7 15;
-  --surface: 15 15 24;
-  --surface-2: 22 22 31;
-  --surface-3: 31 31 43;
-  --border: 40 40 59;
-  --border-strong: 59 59 86;
-  --ink: 231 231 241;
-  --ink-muted: 150 150 176;
-  --ink-faint: 97 97 124;
-  --accent: 31 224 255;
-  --accent-strong: 16 185 214;
-  --accent-fg: 0 0 0;
-  --danger: 255 45 111;
-  --danger-strong: 216 32 90;
+  --bg: 20 10 19;
+  --surface: 29 16 28;
+  --surface-2: 40 22 38;
+  --surface-3: 53 30 50;
+  --border: 66 40 62;
+  --border-strong: 90 56 84;
+  --ink: 243 231 240;
+  --ink-muted: 178 153 172;
+  --ink-faint: 124 100 118;
+  --accent: 255 46 140;
+  --accent-strong: 236 10 114;
+  --accent-fg: 32 8 22;
+  --danger: 255 92 92;
+  --danger-strong: 224 62 62;
   --success: 34 226 154;
-  --info: 164 114 255;
+  --info: 196 130 224;
 }
-[data-theme='cyberpunk-light'] {
+[data-theme='light'] {
   color-scheme: light;
-  --bg: 236 240 246;
+  --bg: 246 238 244;
   --surface: 255 255 255;
-  --surface-2: 238 242 248;
-  --surface-3: 226 232 242;
-  --border: 205 213 227;
-  --border-strong: 178 188 206;
-  --ink: 14 16 28;
-  --ink-muted: 78 88 108;
-  --ink-faint: 128 138 158;
-  --accent: 8 178 212;
-  --accent-strong: 6 148 178;
-  --accent-fg: 0 0 0;
-  --danger: 224 30 96;
-  --danger-strong: 190 24 80;
-  --success: 16 175 118;
-  --info: 124 80 230;
+  --surface-2: 244 234 242;
+  --surface-3: 232 216 229;
+  --border: 215 195 210;
+  --border-strong: 185 158 180;
+  --ink: 34 16 34;
+  --ink-muted: 107 86 105;
+  --ink-faint: 152 128 148;
+  --accent: 199 7 100;
+  --accent-strong: 168 6 84;
+  --accent-fg: 255 255 255;
+  --danger: 200 32 32;
+  --danger-strong: 170 24 24;
+  --success: 13 148 96;
+  --info: 112 32 116;
 }
 @layer base {
 
@@ -59,12 +61,12 @@
   }
 
   ::selection {
-    background: rgba(31, 224, 255, 0.3);
+    background: rgba(255, 46, 140, 0.35);
   }
 
   * {
     scrollbar-width: thin;
-    scrollbar-color: #28283b transparent;
+    scrollbar-color: #42283e transparent;
   }
 
   ::-webkit-scrollbar {
@@ -73,14 +75,14 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background: #28283b;
+    background: #42283e;
     border-radius: 8px;
     border: 2px solid transparent;
     background-clip: padding-box;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: #3b3b56;
+    background: #5a3854;
     background-clip: padding-box;
   }
 

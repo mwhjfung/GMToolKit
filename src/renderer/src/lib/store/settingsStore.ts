@@ -19,8 +19,6 @@ interface SettingsState {
   /** When on, sources can be shared across campaigns (campaign picker appears). */
   shareCustomContent: boolean
   themeMode: ThemeMode
-  /** Hex primary-colour override, or '' for the theme's own accent. */
-  accentColor: string
   load: () => Promise<void>
   setKey: (key: string) => Promise<void>
   clearKey: () => Promise<void>
@@ -28,41 +26,36 @@ interface SettingsState {
   setLlmTemperature: (t: number) => void
   setShareCustomContent: (v: boolean) => void
   setThemeMode: (m: ThemeMode) => void
-  setAccentColor: (c: string) => void
 }
 
 const preview = (key: string | undefined): string =>
   key ? `${key.slice(0, 6)}…${key.slice(-4)}` : ''
 
-export const useSettingsStore = create<SettingsState>((set, get) => ({
+export const useSettingsStore = create<SettingsState>((set) => ({
   hasKey: false,
   keyPreview: '',
   llmModel: DEFAULT_MODEL,
   llmTemperature: 0.7,
   shareCustomContent: false,
   themeMode: 'dark',
-  accentColor: '',
 
   load: async () => {
-    const [key, model, temp, share, themeMode, accentColor] = await Promise.all([
+    const [key, model, temp, share, themeMode] = await Promise.all([
       window.dmc.secrets.get(KEY_NAME),
       getSetting<string>('llmModel'),
       getSetting<number>('llmTemperature'),
       getSetting<boolean>('shareCustomContent'),
-      getSetting<ThemeMode>('themeMode'),
-      getSetting<string>('accentColor')
+      getSetting<ThemeMode>('themeMode')
     ])
     const m = themeMode ?? 'dark'
-    const accent = accentColor ?? ''
-    applyTheme(m, accent)
+    applyTheme(m)
     set({
       hasKey: Boolean(key),
       keyPreview: preview(key),
       llmModel: model ?? DEFAULT_MODEL,
       llmTemperature: temp ?? 0.7,
       shareCustomContent: share ?? false,
-      themeMode: m,
-      accentColor: accent
+      themeMode: m
     })
   },
 
@@ -93,13 +86,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 
   setThemeMode: (m) => {
     set({ themeMode: m })
+    applyTheme(m)
     void setSetting('themeMode', m)
-    applyTheme(m, get().accentColor)
-  },
-
-  setAccentColor: (c) => {
-    set({ accentColor: c })
-    void setSetting('accentColor', c)
-    applyTheme(get().themeMode, c)
   }
 }))
