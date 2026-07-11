@@ -1,3 +1,4 @@
+import './dataMigration'
 import { app, shell, BrowserWindow, ipcMain, session } from 'electron'
 import { join } from 'path'
 import { secretsStore } from './secrets'

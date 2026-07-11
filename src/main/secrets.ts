@@ -3,7 +3,7 @@ import Store from 'electron-store'
 /**
  * Secrets live in the main process only, never in the renderer's IndexedDB.
  * electron-store's encryptionKey is obfuscation, not real security — fine for a
- * single personal machine. See docs/DESIGN.md "Known technical risks".
+ * single personal machine.
  */
 interface SecretsSchema {
   anthropicApiKey?: string
