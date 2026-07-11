@@ -69,7 +69,7 @@ Builds are **unsigned** by default, so on first launch macOS Gatekeeper warns th
 
 ## Installing the app (for your friend or a new machine)
 
-Go to the [Releases page](https://github.com/mwhjfung/DMCommandCentre/releases/latest) and download the right file:
+Go to the [Releases page](https://github.com/mwhjfung/GMToolKit/releases/latest) and download the right file:
 
 | Platform | File to download |
 |---|---|
