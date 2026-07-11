@@ -5,7 +5,7 @@ directories:
 publish:
   provider: github
   owner: mwhjfung
-  repo: DMCommandCentre
+  repo: GMToolKit
   releaseType: release
 files:
   - '!**/.vscode/*'

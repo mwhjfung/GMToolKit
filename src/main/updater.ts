@@ -13,7 +13,7 @@ export interface UpdaterStatus {
 
 // ── Change these two constants to match your GitHub repo ──────────────────────
 const GITHUB_OWNER = 'mwhjfung'
-const GITHUB_REPO = 'DMCommandCentre'
+const GITHUB_REPO = 'GMToolKit'
 // ─────────────────────────────────────────────────────────────────────────────
 
 let _win: BrowserWindow | null = null
