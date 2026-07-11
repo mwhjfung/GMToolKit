@@ -34,6 +34,28 @@ function extractJsonArray(raw: string): unknown[] {
   return parsed
 }
 
+// A single call caps out around ~15k input tokens worth of document text, so
+// a full book has to be split into chunks or everything past the first one
+// gets silently dropped. Chunk boundaries prefer a blank line near the target
+// size so an entry's description isn't cut in half.
+const MAX_CHUNK_CHARS = 45000
+
+function chunkText(text: string): string[] {
+  if (text.length <= MAX_CHUNK_CHARS) return [text]
+  const chunks: string[] = []
+  let start = 0
+  while (start < text.length) {
+    let end = Math.min(start + MAX_CHUNK_CHARS, text.length)
+    if (end < text.length) {
+      const breakAt = text.lastIndexOf('\n\n', end)
+      if (breakAt > start + MAX_CHUNK_CHARS * 0.5) end = breakAt
+    }
+    chunks.push(text.slice(start, end))
+    start = end
+  }
+  return chunks
+}
+
 function toEntry(obj: unknown): ContentEntry | null {
   if (!obj || typeof obj !== 'object') return null
   const o = obj as Record<string, unknown>
@@ -55,14 +77,51 @@ function toEntry(obj: unknown): ContentEntry | null {
   return entry
 }
 
-/** Ask Claude to read a document and return structured content entries. */
-export async function smartParse(docText: string): Promise<ContentEntry[]> {
-  const raw = await callClaude({
-    system: SYSTEM,
-    prompt: `Document:\n\n${docText.slice(0, 60000)}`,
-    maxTokens: 16000
-  })
-  return extractJsonArray(raw)
-    .map(toEntry)
-    .filter((e): e is ContentEntry => e !== null)
+export interface SmartParseProgress {
+  done: number
+  total: number
+}
+
+/**
+ * Ask Claude to read a document and return structured content entries. Long
+ * documents (a whole rulebook, not just a few pages) are split into chunks
+ * and parsed one at a time so nothing past the first chunk gets dropped;
+ * entries are deduped by type+name in case one spans a chunk boundary and
+ * gets picked up on both sides.
+ */
+export async function smartParse(
+  docText: string,
+  onProgress?: (p: SmartParseProgress) => void
+): Promise<ContentEntry[]> {
+  const chunks = chunkText(docText)
+  const all: ContentEntry[] = []
+  const seen = new Set<string>()
+
+  for (let i = 0; i < chunks.length; i += 1) {
+    onProgress?.({ done: i, total: chunks.length })
+    try {
+      const raw = await callClaude({
+        system: SYSTEM,
+        prompt:
+          chunks.length > 1
+            ? `Document, part ${i + 1} of ${chunks.length}:\n\n${chunks[i]}`
+            : `Document:\n\n${chunks[i]}`,
+        maxTokens: 16000
+      })
+      const entries = extractJsonArray(raw)
+        .map(toEntry)
+        .filter((e): e is ContentEntry => e !== null)
+      for (const e of entries) {
+        const key = `${e.type}:${e.name.toLowerCase()}`
+        if (seen.has(key)) continue
+        seen.add(key)
+        all.push(e)
+      }
+    } catch (error) {
+      // One malformed chunk shouldn't lose everything already parsed.
+      console.error(`Smart parse failed on chunk ${i + 1}/${chunks.length}:`, error)
+    }
+  }
+  onProgress?.({ done: chunks.length, total: chunks.length })
+  return all
 }

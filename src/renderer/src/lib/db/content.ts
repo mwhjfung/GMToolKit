@@ -88,7 +88,7 @@ export interface SyncProgress {
   count?: number
 }
 
-/** Fetch the SRD datasets from Open5e and upsert them into the local database. */
+/** Fetch the bundled SRD datasets and upsert them into the local database. */
 export async function syncSrd(onProgress?: (p: SyncProgress) => void): Promise<{ entries: number }> {
   const total = SRD_GROUPS.length
   let entries = 0
@@ -96,9 +96,13 @@ export async function syncSrd(onProgress?: (p: SyncProgress) => void): Promise<{
     const group = SRD_GROUPS[i]
     onProgress?.({ label: group.label, done: i, total })
     const mapped = await group.fetch()
-    await db.content.bulkPut(mapped)
-    entries += mapped.length
-    onProgress?.({ label: group.label, done: i + 1, total, count: mapped.length })
+    // Hand-edited SRD entries (see EntryForm) are left alone — re-syncing
+    // should fill in new/updated official entries, never clobber local edits.
+    const existing = await db.content.bulkGet(mapped.map((e) => e.id))
+    const toWrite = mapped.filter((_e, idx) => !existing[idx]?.srdEdited)
+    await db.content.bulkPut(toWrite)
+    entries += toWrite.length
+    onProgress?.({ label: group.label, done: i + 1, total, count: toWrite.length })
   }
   await setSetting('srdSyncedAt', Date.now())
   return { entries }

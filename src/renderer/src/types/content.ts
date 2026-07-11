@@ -33,6 +33,9 @@ export interface ContentCommon {
   slug?: string
   /** User-marked as homebrew content. */
   homebrew?: boolean
+  /** Set when a built-in SRD entry has been hand-edited — re-syncing the SRD
+   * skips these so local changes survive. */
+  srdEdited?: boolean
   createdAt: number
   updatedAt: number
 }

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { X, FileUp, Loader2, AlertTriangle, Info, Sparkles } from 'lucide-react'
 import { extractText } from '@/lib/import/extractText'
 import { splitEntries, type SplitStrategy, type ImportType } from '@/lib/import/splitEntries'
-import { smartParse } from '@/lib/import/smartParse'
+import { smartParse, type SmartParseProgress } from '@/lib/import/smartParse'
 import { TEMPLATES, CREATABLE_TYPES } from '@/lib/templates/schemas'
 import { useUiStore } from '@/lib/store/uiStore'
 import { useSettingsStore } from '@/lib/store/settingsStore'
@@ -39,6 +39,7 @@ export function ImportDialog(): JSX.Element {
   const isJson = files.length > 0 && files.every((f) => f.name.toLowerCase().endsWith('.json'))
   const [drafts, setDrafts] = useState<ContentEntry[]>([])
   const [error, setError] = useState('')
+  const [smartProgress, setSmartProgress] = useState<SmartParseProgress | null>(null)
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
@@ -52,6 +53,7 @@ export function ImportDialog(): JSX.Element {
     if (!files.length) return
     setPhase('parsing')
     setError('')
+    setSmartProgress(null)
     try {
       if (isJson) {
         const src = source.trim()
@@ -69,7 +71,9 @@ export function ImportDialog(): JSX.Element {
       }
       const file = files[0]
       const doc = await extractText(file)
-      let result = useClaude ? await smartParse(doc.text) : splitEntries(doc, strategy, type, file.name)
+      let result = useClaude
+        ? await smartParse(doc.text, setSmartProgress)
+        : splitEntries(doc, strategy, type, file.name)
       const src = source.trim()
       if (src) result = result.map((e) => ({ ...e, world: src }))
       if (!result.length) {
@@ -240,6 +244,21 @@ export function ImportDialog(): JSX.Element {
                 <div className="flex items-start gap-2 rounded-md border border-danger/40 bg-danger/10 p-2.5 text-sm text-danger">
                   <AlertTriangle size={15} className="mt-0.5 shrink-0" />
                   {error}
+                </div>
+              )}
+
+              {phase === 'parsing' && useClaude && smartProgress && smartProgress.total > 1 && (
+                <div className="flex flex-col gap-1.5">
+                  <div className="text-xs text-ink-muted">
+                    Large document — parsing part {Math.min(smartProgress.done + 1, smartProgress.total)} of{' '}
+                    {smartProgress.total}…
+                  </div>
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-3">
+                    <div
+                      className="h-full bg-accent transition-[width]"
+                      style={{ width: `${(smartProgress.done / smartProgress.total) * 100}%` }}
+                    />
+                  </div>
                 </div>
               )}
             </div>

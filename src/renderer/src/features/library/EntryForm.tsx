@@ -507,6 +507,7 @@ export function EntryForm({ type, entry, onClose, onSaved, review }: EntryFormPr
   const save = async (): Promise<void> => {
     if (!draft.name.trim()) return
     const out: ContentEntry = { ...draft, name: draft.name.trim(), updatedAt: Date.now() }
+    if (out.source === 'srd') out.srdEdited = true
     if (out.type === 'spell') {
       out.data = { ...out.data, levelText: out.data.level === 0 ? 'Cantrip' : `Level ${out.data.level}` }
     }
