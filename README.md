@@ -38,6 +38,7 @@ If you just want to run the app — no coding required — go to the [Releases p
 **Mac:** open the `.dmg` and drag the app into Applications. Because this build isn't signed with a paid Apple Developer certificate, macOS will block it on first launch:
 
 - If you see **"developer cannot be verified"** — right-click the app, choose **Open**, then click **Open** again in the dialog. You only need to do this once.
+- If you see **"Apple could not verify 'GM Toolkit' is free of malware"** — this is the current Gatekeeper wording for the same "not notarized" situation (no paid Apple Developer certificate). Go to **System Settings → Privacy & Security**, scroll to the Security section, and click **Open Anyway** next to the GM Toolkit message, then confirm in the dialog that follows. You only need to do this once.
 - If you instead see **"GM Toolkit is damaged and can't be opened"** — this is misleading; the app isn't actually broken, macOS is just refusing to run an unsigned app (common on newer macOS versions). Open **Terminal** (search for it with Spotlight), run:
 
   ```bash
