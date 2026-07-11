@@ -35,7 +35,16 @@ If you just want to run the app — no coding required — go to the [Releases p
 
 **Windows:** run the `.exe` installer and click through the prompts. Windows may warn "unrecognised app" since this isn't a signed, store-published app — click **More info → Run anyway**.
 
-**Mac:** open the `.dmg` and drag the app into Applications. On first launch, macOS will say the developer is unidentified — right-click the app, choose **Open**, then click **Open** again in the dialog that appears. You only need to do this once.
+**Mac:** open the `.dmg` and drag the app into Applications. Because this build isn't signed with a paid Apple Developer certificate, macOS will block it on first launch:
+
+- If you see **"developer cannot be verified"** — right-click the app, choose **Open**, then click **Open** again in the dialog. You only need to do this once.
+- If you instead see **"GM Toolkit is damaged and can't be opened"** — this is misleading; the app isn't actually broken, macOS is just refusing to run an unsigned app (common on newer macOS versions). Open **Terminal** (search for it with Spotlight), run:
+
+  ```bash
+  xattr -cr "/Applications/GM Toolkit.app"
+  ```
+
+  then open the app normally. You only need to do this once per install.
 
 After that, the app checks for updates itself (Settings → Updates) — see below.
 
