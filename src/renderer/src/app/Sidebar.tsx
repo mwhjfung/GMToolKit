@@ -9,13 +9,16 @@ import {
   PanelLeftOpen,
   Search,
   Eye,
-  EyeOff
+  EyeOff,
+  Moon,
+  Sun
 } from 'lucide-react'
 import logo from '@/assets/logo.png'
 import { CampaignSwitcher } from './CampaignSwitcher'
 import { GlobalSearch } from '@/components/GlobalSearch'
 import { useUiStore } from '@/lib/store/uiStore'
 import { useVoiceStore } from '@/lib/store/voiceStore'
+import { useSettingsStore } from '@/lib/store/settingsStore'
 import { cn } from '@/lib/cn'
 
 const NAV = [
@@ -34,6 +37,8 @@ export function Sidebar(): JSX.Element {
   const toggleFeed = useUiStore((s) => s.toggleFeed)
   const listening = useVoiceStore((s) => s.status === 'listening')
   const openSearch = useUiStore((s) => s.openSearch)
+  const themeMode = useSettingsStore((s) => s.themeMode)
+  const setThemeMode = useSettingsStore((s) => s.setThemeMode)
 
   return (
     <>
@@ -51,7 +56,7 @@ export function Sidebar(): JSX.Element {
           ) : (
             <>
               <div className="flex items-center gap-1">
-                <img src={logo} alt="" className="h-5 w-5 rounded" />
+                <img src={logo} alt="" className="h-8 w-8 rounded" />
                 <span className="text-sm font-semibold tracking-wide text-ink">GM TOOLKIT</span>
               </div>
               <button type="button" className="icon-btn" onClick={toggle} title="Collapse sidebar">
@@ -132,6 +137,20 @@ export function Sidebar(): JSX.Element {
                 </span>
               </span>
             )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setThemeMode(themeMode === 'dark' ? 'light' : 'dark')}
+            title={themeMode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            className={cn(
+              itemBase,
+              collapsed ? 'justify-center px-0' : 'gap-3 px-3',
+              'text-ink-muted hover:bg-surface-3 hover:text-ink'
+            )}
+          >
+            {themeMode === 'dark' ? <Moon size={17} strokeWidth={2} /> : <Sun size={17} strokeWidth={2} />}
+            {!collapsed && (themeMode === 'dark' ? 'Dark mode' : 'Light mode')}
           </button>
 
           <NavLink

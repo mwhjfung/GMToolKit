@@ -9,7 +9,6 @@ import { TYPE_META } from '@/components/typeMeta'
 import { useVoiceStore, type Sensitivity, type SuppressMinutes } from '@/lib/store/voiceStore'
 import { useContentStore } from '@/lib/store/contentStore'
 import { useSettingsStore, LLM_MODELS } from '@/lib/store/settingsStore'
-import type { ThemeMode } from '@/lib/theme'
 import { CONTENT_TYPE_LABELS, type ContentType } from '@/types/content'
 import { exportCustomContent, importContentFromFile, clearAllContent } from '@/lib/data/exportImport'
 import { LearnedCorrectionsModal } from './LearnedCorrectionsModal'
@@ -67,26 +66,6 @@ function Segmented<T extends string | number>({
         </button>
       ))}
     </div>
-  )
-}
-
-function AppearanceSection(): JSX.Element {
-  const themeMode = useSettingsStore((s) => s.themeMode)
-  const setThemeMode = useSettingsStore((s) => s.setThemeMode)
-
-  return (
-    <Section title="Appearance" description="Light or dark.">
-      <Field label="Mode">
-        <Segmented<ThemeMode>
-          value={themeMode}
-          onChange={setThemeMode}
-          options={[
-            { value: 'dark', label: 'Dark' },
-            { value: 'light', label: 'Light' }
-          ]}
-        />
-      </Field>
-    </Section>
   )
 }
 
@@ -500,7 +479,6 @@ export function SettingsPage(): JSX.Element {
     <Page title="Settings" subtitle="Voice, keyword feed, AI and data">
       <div className="mx-auto max-w-2xl space-y-4 p-6">
         <UpdateSection />
-        <AppearanceSection />
         <MicSection />
         <KeywordFeedSection />
         <LearnedCorrectionsSection />
