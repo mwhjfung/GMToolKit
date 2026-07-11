@@ -13,7 +13,8 @@ import {
   Moon,
   Sun
 } from 'lucide-react'
-import logo from '@/assets/logo.png'
+import logoDark from '@/assets/logo.png'
+import logoLight from '@/assets/logo-light.png'
 import { CampaignSwitcher } from './CampaignSwitcher'
 import { GlobalSearch } from '@/components/GlobalSearch'
 import { useUiStore } from '@/lib/store/uiStore'
@@ -56,7 +57,7 @@ export function Sidebar(): JSX.Element {
           ) : (
             <>
               <div className="flex items-center gap-1">
-                <img src={logo} alt="" className="h-8 w-8" />
+                <img src={themeMode === 'dark' ? logoDark : logoLight} alt="" className="h-8 w-8" />
                 <span className="text-sm font-semibold tracking-wide text-ink">GM TOOLKIT</span>
               </div>
               <button type="button" className="icon-btn" onClick={toggle} title="Collapse sidebar">
