@@ -56,7 +56,7 @@ export function Sidebar(): JSX.Element {
           ) : (
             <>
               <div className="flex items-center gap-1">
-                <img src={logo} alt="" className="h-8 w-8 rounded" />
+                <img src={logo} alt="" className="h-8 w-8" />
                 <span className="text-sm font-semibold tracking-wide text-ink">GM TOOLKIT</span>
               </div>
               <button type="button" className="icon-btn" onClick={toggle} title="Collapse sidebar">
