@@ -19,6 +19,7 @@ files:
 asar: true
 asarUnpack:
   - resources/**
+afterSign: scripts/afterSign.cjs
 win:
   executableName: gm-toolkit
   target:
