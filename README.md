@@ -1,40 +1,70 @@
-# DM Command
+# GM Toolkit
 
-A local-first desktop toolkit for running Dungeons & Dragons 5e sessions, built around a **live voice keyword feed** — it listens to your table and surfaces the relevant spell, monster, item and rule cards as you play.
+A desktop app that helps you run Dungeons & Dragons 5e sessions. Its main trick: it **listens to your table while you play** and automatically pulls up the right spell, monster, item or rule card the moment someone says its name — so you're not pausing the game to flip through a book or tab through a PDF.
 
-Everything runs and stays on your machine. There's no account, no server, and no audio ever leaves the computer.
+Everything about it is private and local. There's no account to create, nothing runs on a server, and no audio from your table is ever sent anywhere.
 
 ---
 
-## Features
+## What it does
 
-- **Library** — the official 5e SRD (pulled once from [Open5e](https://open5e.com) and cached offline) alongside your own homebrew, organised into **Sources** shown as tabs. Content is scoped per campaign, with optional sharing of a Source across campaigns. Schema-driven authoring for spells, monsters/NPCs, items, weapons, conditions, classes, subclasses, proficiencies and world entries, with bulk edit (retag / move / delete).
-- **Voice keyword feed** — in-app speech-to-text (Whisper, running on WebGPU with a WASM fallback) transcribes the session live and fuzzy-matches what's said against your library, popping cards into a feed. Select text to look it up, teach it corrections, and pin things to the board.
-- **Dashboard** — per-session workspaces (tabs): a pinnable reference board, an initiative tracker, and notes. Creating a session lets you choose what to carry over from the last one.
-- **Initiative tracker** — roll, advance with Space, track HP / temp HP / conditions, lockable initiatives, batch-add monsters, and pull in the party.
-- **Party** — full character sheets: stats, saves, skills, senses, training, defences, spell slots and an Actions panel, plus Inventory (add from the library or new), Features & Traits, Background and Notes. Import characters from JSON or directly from a public **D&D Beyond** link.
-- **Campaigns** — keep separate worlds, each with its own content, board, combat, party and sessions.
-- **Document import** — bring in Word, PDF, text or Markdown as draft entries; an optional "smart parse with Claude" mode (your own API key) handles messy files.
+- **A living rulebook** — the full D&D 5e SRD (spells, monsters, items, conditions, classes and more) is built in and works offline. You can also add your own homebrew content — custom spells, monsters, NPCs, items, house rules — right alongside it. Content is organized per campaign, so your homebrew for one game doesn't clutter another.
 
-See [`docs/DESIGN.md`](docs/DESIGN.md) for the design notes and roadmap.
+- **Listens and surfaces cards for you** — while you're running a session, the app transcribes the conversation at your table in real time and watches for anything that matches your library. Say "the goblin casts *shield*" and both cards pop up automatically, no searching required. You can also search manually, correct anything it mishears, and pin cards you know you'll need.
+
+- **A session dashboard** — a workspace for each session with a pinboard for the cards you're using, an initiative tracker, and a notes area. Starting a new session lets you carry things over from the last one.
+
+- **Initiative & combat tracking** — roll initiative, step through turns with the spacebar, and track HP, temporary HP and conditions for everyone in the fight. Add monsters in bulk, and pull your players in automatically.
+
+- **Full character sheets** — stats, saving throws, skills, senses, spell slots, inventory, features, background and notes for every player character. Import a character from a file, or paste a public **D&D Beyond** link and it fills itself in.
+
+- **Multiple campaigns** — keep separate games completely separate: their own content, board, combat state, party and session history.
+
+- **Bring your own notes** — import Word documents, PDFs, text files or Markdown as draft library entries. There's an optional "smart parse" mode (using your own Anthropic API key) that can make sense of messier documents for you.
+
+---
+
+## Installing the app
+
+If you just want to run the app — no coding required — go to the [Releases page](https://github.com/mwhjfung/GMToolKit/releases/latest) and download the file for your computer:
+
+| Platform | File to download |
+|---|---|
+| Windows | `gm-toolkit-X.Y.Z-setup.exe` |
+| Mac (Apple Silicon) | `gm-toolkit-X.Y.Z.dmg` |
+
+**Windows:** run the `.exe` installer and click through the prompts. Windows may warn "unrecognised app" since this isn't a signed, store-published app — click **More info → Run anyway**.
+
+**Mac:** open the `.dmg` and drag the app into Applications. On first launch, macOS will say the developer is unidentified — right-click the app, choose **Open**, then click **Open** again in the dialog that appears. You only need to do this once.
+
+After that, the app checks for updates itself (Settings → Updates) — see below.
 
 ---
 
 ## Privacy
 
-- All data lives locally in the browser engine's IndexedDB (via Dexie) plus a small encrypted settings store (electron-store).
-- Transcription happens **in-app** — no audio is sent anywhere.
-- An Anthropic API key is optional and only used for the "smart parse" import; it's stored encrypted in the main process, never in the renderer.
+- Everything you create lives only on your computer, in a local database — nothing is uploaded anywhere.
+- Voice transcription happens entirely on your machine; no audio ever leaves your computer.
+- An Anthropic (Claude) API key is completely optional and only used if you turn on the "smart parse" import feature. It's stored encrypted and never leaves your device.
 
 ---
 
-## Tech stack
+## Getting updates
 
-Electron 33 · electron-vite · React 18 · TypeScript · Tailwind CSS · Zustand · Dexie (IndexedDB) · `@huggingface/transformers` (Whisper) · electron-builder.
+Updates happen from inside the app (Settings → Updates) once it's installed — you don't need to redownload anything from GitHub each time:
+
+- **Windows:** clicking "Download" installs the update silently — just click "Restart & install" when it's ready.
+- **Mac:** clicking "Download" opens the GitHub releases page so you can grab the new `.dmg` and reinstall (full silent updates on Mac require a paid Apple Developer certificate).
 
 ---
 
-## Getting started
+## Status
+
+In active development. The core experience — library, live voice feed, dashboard, combat tracker, campaigns and party sheets — is built and working, along with in-app updates via GitHub Releases.
+
+---
+
+## For developers
 
 **Prerequisites:** Node.js 18+ (20 recommended) and npm.
 
@@ -43,75 +73,13 @@ npm install
 npm run dev      # launches the app with hot-reload
 ```
 
-> Note: changes to the renderer hot-reload instantly. Changes to the **main process or preload** (`src/main`, `src/preload`) require the dev server to restart.
-
-**Type-check:**
+> Changes to the renderer hot-reload instantly. Changes to the **main process or preload** (`src/main`, `src/preload`) require the dev server to restart.
 
 ```bash
-npm run typecheck      # main + renderer
+npm run typecheck      # type-checks main + renderer
 ```
 
----
-
-## Building installers
-
-```bash
-npm run build:mac      # → dist/dm-command-<version>.dmg
-npm run build:win      # → dist/dm-command-<version>-setup.exe  (NSIS)
-npm run build:unpack   # unpacked build for quick local testing
-```
-
-A custom app icon is optional — drop a 1024×1024 `build/icon.png` and electron-builder generates the platform icons; without it the default Electron icon is used. Targets live in [`electron-builder.yml`](electron-builder.yml). Cross-building (e.g. a Windows installer from macOS) is unreliable — build each platform on its own OS, or in CI.
-
-Builds are **unsigned** by default, so on first launch macOS Gatekeeper warns that the developer is unidentified — right-click the app and choose **Open** to get past it. Removing that warning entirely needs an Apple Developer certificate (signing + notarisation). On Apple Silicon the build is `arm64`; add `--universal` to also run on Intel Macs.
-
----
-
-## Installing the app (for your friend or a new machine)
-
-Go to the [Releases page](https://github.com/mwhjfung/GMToolKit/releases/latest) and download the right file:
-
-| Platform | File to download |
-|---|---|
-| Windows | `dm-command-X.Y.Z-setup.exe` |
-| Mac (Apple Silicon) | `dm-command-X.Y.Z.dmg` |
-
-**Windows:** run the `.exe` installer, click through the prompts. SmartScreen may warn "unrecognised app" — click **More info → Run anyway**.
-
-**Mac:** open the `.dmg`, drag the app to Applications. On first launch, macOS will say the developer is unidentified — right-click the app and choose **Open**, then click **Open** again in the dialog. You only need to do this once.
-
-After the first install, updates are handled inside the app — see below.
-
----
-
-## Publishing an update
-
-Do this whenever you want to push a new version to your friend.
-
-**1. Bump the version** in `package.json` — e.g. `"version": "0.1.0"` → `"0.2.0"`.
-
-**2. Set your GitHub token** (create one at github.com → Settings → Developer settings → Personal access tokens → Fine-grained tokens; give it **Contents: Read and write** on this repo):
-
-```bash
-export GH_TOKEN=your_token_here
-```
-
-**3. Build and publish:**
-
-```bash
-npm run publish:mac      # run this on your Mac
-npm run publish:win      # run this on a Windows machine
-```
-
-Each command builds the app and creates a GitHub Release with the installer attached. The next time either user opens the app and checks for updates (Settings → Updates), it will find and offer the new version.
-
-**Mac users:** when an update is found, clicking "Download" opens the GitHub releases page in the browser — download the new `.dmg` and reinstall. (Full silent auto-update on Mac requires a paid Apple Developer certificate.)
-
-**Windows users:** clicking "Download" in the app downloads and installs the update silently — just click "Restart & install" when it's ready.
-
----
-
-## Project layout
+**Project layout:**
 
 ```
 src/main        Electron main process (window, mic permissions, secrets, D&D Beyond fetch)
@@ -123,11 +91,41 @@ src/renderer    The React app
   components/   shared UI
 ```
 
+**Tech stack:** Electron 33 · electron-vite · React 18 · TypeScript · Tailwind CSS · Zustand · Dexie (IndexedDB) · `@huggingface/transformers` (Whisper) · electron-builder.
+
+### Building installers
+
+```bash
+npm run build:mac      # → dist/gm-toolkit-<version>.dmg
+npm run build:win      # → dist/gm-toolkit-<version>-setup.exe  (NSIS)
+npm run build:unpack   # unpacked build for quick local testing
+```
+
+A custom app icon is optional — drop a 1024×1024 `build/icon.png` and electron-builder generates the platform icons; without it the default Electron icon is used. Targets live in [`electron-builder.yml`](electron-builder.yml). Cross-building (e.g. a Windows installer from macOS) is unreliable — build each platform on its own OS, or in CI.
+
+Builds are **unsigned** by default, so macOS Gatekeeper and Windows SmartScreen will both warn on first launch (see "Installing the app" above for how to get past that). Removing the macOS warning entirely needs an Apple Developer certificate (signing + notarisation). On Apple Silicon the build is `arm64`; add `--universal` to also run on Intel Macs.
+
+### Publishing an update
+
+Do this whenever you want to push a new version out to users:
+
+1. **Bump the version** in `package.json` — e.g. `"version": "0.1.0"` → `"0.2.0"`.
+2. **Set your GitHub token** (create one at github.com → Settings → Developer settings → Personal access tokens → Fine-grained tokens; give it **Contents: Read and write** on this repo):
+
+   ```bash
+   export GH_TOKEN=your_token_here
+   ```
+
+3. **Build and publish:**
+
+   ```bash
+   npm run publish:mac      # run this on a Mac
+   npm run publish:win      # run this on a Windows machine
+   ```
+
+Each command builds the app and creates a GitHub Release with the installer attached. The next time a user opens the app and checks for updates, it'll find and offer the new version.
+
 ---
-
-## Status
-
-In active development. The core (library, voice feed, dashboard, combat, campaigns, party) and auto-update via GitHub Releases are built.
 
 ## Licence
 
