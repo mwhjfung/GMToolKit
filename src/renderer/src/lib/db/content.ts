@@ -93,18 +93,41 @@ export interface SyncProgress {
   count?: number
 }
 
+const SRD_EXCLUDED_KEY = 'srdExcludedIds'
+
+async function getSrdExcludedIds(): Promise<Set<string>> {
+  const ids = await getSetting<string[]>(SRD_EXCLUDED_KEY)
+  return new Set(ids ?? [])
+}
+
+/** Individually-deleted or adopted-as-custom SRD entries shouldn't come back
+ * next time the user clicks Re-sync — remember their ids so future syncs
+ * skip writing them, the same way a hand-edited entry (srdEdited) is left
+ * alone. */
+export async function excludeFromSrdSync(ids: string[]): Promise<void> {
+  if (!ids.length) return
+  const excluded = await getSrdExcludedIds()
+  for (const id of ids) excluded.add(id)
+  await setSetting(SRD_EXCLUDED_KEY, [...excluded])
+}
+
 /** Fetch the bundled SRD datasets and upsert them into the local database. */
 export async function syncSrd(onProgress?: (p: SyncProgress) => void): Promise<{ entries: number }> {
   const total = SRD_GROUPS.length
+  const excluded = await getSrdExcludedIds()
   let entries = 0
   for (let i = 0; i < SRD_GROUPS.length; i += 1) {
     const group = SRD_GROUPS[i]
     onProgress?.({ label: group.label, done: i, total })
     const mapped = await group.fetch()
-    // Hand-edited SRD entries (see EntryForm) are left alone — re-syncing
-    // should fill in new/updated official entries, never clobber local edits.
+    // Hand-edited entries (see EntryForm), ones adopted into a custom
+    // source, and ones the user individually deleted are left alone —
+    // re-syncing should fill in new/updated official entries, never clobber
+    // local changes or resurrect something the user asked to be rid of.
     const existing = await db.content.bulkGet(mapped.map((e) => e.id))
-    const toWrite = mapped.filter((_e, idx) => !existing[idx]?.srdEdited)
+    const toWrite = mapped.filter(
+      (e, idx) => !existing[idx]?.srdEdited && existing[idx]?.source !== 'custom' && !excluded.has(e.id)
+    )
     await db.content.bulkPut(toWrite)
     entries += toWrite.length
     onProgress?.({ label: group.label, done: i + 1, total, count: toWrite.length })
@@ -116,11 +139,14 @@ export async function syncSrd(onProgress?: (p: SyncProgress) => void): Promise<{
 
 /** Remove all SRD content from the local database. Doesn't touch the
  * bundled dataset itself — Re-sync brings it all back. Marks SRD as
- * user-disabled so the app doesn't silently re-download it on next launch. */
+ * user-disabled so the app doesn't silently re-download it on next launch,
+ * and clears any individual-deletion history since a full Re-sync from here
+ * should be a clean slate. */
 export async function removeSrd(): Promise<void> {
   const ids = await db.content.where('source').equals('srd').primaryKeys()
   await bulkDeleteContent(ids as string[])
   await setSetting('srdDisabled', true)
+  await setSetting(SRD_EXCLUDED_KEY, [])
 }
 
 // ---- generic settings (non-secret) ----------------------------------------

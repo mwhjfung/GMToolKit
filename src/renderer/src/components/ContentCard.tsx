@@ -20,7 +20,7 @@ interface ContentCardProps {
    * true to skip opening — used to swallow the native click a drag/resize
    * leaves behind, so rearranging cards doesn't also pop one open. */
   onBeforeClick?: () => boolean
-  /** When provided (custom entries only), a selection checkbox is shown. */
+  /** When provided, a selection checkbox is shown (Library grid only). */
   onToggleSelect?: () => void
   selected?: boolean
 }
@@ -37,7 +37,7 @@ export function ContentCard({
   const openDrawer = useUiStore((s) => s.openDrawer)
   const pinned = useContentStore((s) => s.pinnedIds.includes(entry.id))
   const togglePin = useContentStore((s) => s.togglePin)
-  const selectable = Boolean(onToggleSelect) && entry.source === 'custom'
+  const selectable = Boolean(onToggleSelect)
 
   return (
     <div

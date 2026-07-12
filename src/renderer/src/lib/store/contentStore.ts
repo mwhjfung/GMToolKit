@@ -7,6 +7,7 @@ import {
   deleteContent,
   syncSrd,
   removeSrd as removeSrdFromDb,
+  excludeFromSrdSync,
   getSetting,
   setSetting,
   type SyncProgress
@@ -362,13 +363,25 @@ export const useContentStore = create<ContentState>((set, get) => ({
     const idset = new Set(ids)
     const r = ensureSource(get().sources, sourceName, getActiveCampaignId())
     const changed: ContentEntry[] = []
+    const adoptedSrdIds: string[] = []
     const items = get().items.map((e) => {
-      if (!idset.has(e.id) || e.source !== 'custom') return e
-      const ne = { ...e, sourceId: r.sourceId, world: r.name, updatedAt: Date.now() }
+      if (!idset.has(e.id)) return e
+      // An SRD entry assigned a source is being adopted into the user's own
+      // library — from here it's a normal custom entry (editable, excluded
+      // from future SRD re-syncs so it doesn't get overwritten back).
+      if (e.source === 'srd') adoptedSrdIds.push(e.id)
+      const ne = {
+        ...e,
+        source: 'custom' as const,
+        sourceId: r.sourceId,
+        world: r.name,
+        updatedAt: Date.now()
+      }
       changed.push(ne)
       return ne
     })
     await Promise.all(changed.map((e) => putContent(e)))
+    if (adoptedSrdIds.length) void excludeFromSrdSync(adoptedSrdIds)
     void setSetting(SOURCES_KEY, r.sources)
     set({ items, sources: r.sources, visibleItems: computeVisible(items, r.sources) })
   },
@@ -392,7 +405,11 @@ export const useContentStore = create<ContentState>((set, get) => ({
 
   bulkRemove: async (ids) => {
     const idset = new Set(ids)
+    // Deleting an SRD entry should stick — otherwise the next Re-sync would
+    // silently bring it right back.
+    const removedSrdIds = get().items.filter((e) => idset.has(e.id) && e.source === 'srd').map((e) => e.id)
     for (const id of ids) await deleteContent(id)
+    if (removedSrdIds.length) void excludeFromSrdSync(removedSrdIds)
     const pinnedIds = get().pinnedIds.filter((p) => !idset.has(p))
     const items = get().items.filter((e) => !idset.has(e.id))
     set({ items, pinnedIds, visibleItems: computeVisible(items, get().sources) })

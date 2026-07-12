@@ -83,8 +83,14 @@ export function BulkActionBar({ ids, onClear, onSelectAll, totalShown }: BulkAct
     done()
   }
   const applyDelete = async (): Promise<void> => {
+    const srdCount = selectedEntries.filter((e) => e.source === 'srd').length
+    const srdNote = srdCount
+      ? ` ${srdCount === ids.length ? 'These are' : `${srdCount} of these are`} official SRD content — deleting them sticks even through Re-sync, until you use "Remove SRD" to reset.`
+      : ''
     if (
-      window.confirm(`Delete ${ids.length} ${ids.length === 1 ? 'entry' : 'entries'}? This can't be undone.`)
+      window.confirm(
+        `Delete ${ids.length} ${ids.length === 1 ? 'entry' : 'entries'}?${srdNote} This can't be undone.`
+      )
     ) {
       await bulkRemove(ids)
       done()
@@ -147,19 +153,27 @@ export function BulkActionBar({ ids, onClear, onSelectAll, totalShown }: BulkAct
       </div>
 
       {menu === 'source' && (
-        <div className="mt-2 flex items-end gap-2">
-          <div className="w-72">
-            <TagSelect
-              value={sourceName}
-              options={sourceOptions}
-              placeholder="Pick or name a source…"
-              onChange={(v) => setSourceName(v as string)}
-            />
+        <div className="mt-2 flex flex-col gap-1.5">
+          {selectedEntries.some((e) => e.source === 'srd') && (
+            <p className="text-xs text-ink-muted">
+              SRD entries assigned a source become your own editable copy — they're excluded from
+              future Re-syncs so your changes stick.
+            </p>
+          )}
+          <div className="flex items-end gap-2">
+            <div className="w-72">
+              <TagSelect
+                value={sourceName}
+                options={sourceOptions}
+                placeholder="Pick or name a source…"
+                onChange={(v) => setSourceName(v as string)}
+              />
+            </div>
+            <button type="button" className="btn-accent" disabled={!sourceName.trim()} onClick={() => void applySource()}>
+              <Check size={15} />
+              Apply
+            </button>
           </div>
-          <button type="button" className="btn-accent" disabled={!sourceName.trim()} onClick={() => void applySource()}>
-            <Check size={15} />
-            Apply
-          </button>
         </div>
       )}
 

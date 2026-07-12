@@ -131,8 +131,6 @@ export function LibraryPage(): JSX.Element {
     () => filterContent(tabItems, { query, types: activeTypes.size ? [...activeTypes] : undefined }),
     [tabItems, query, activeTypes]
   )
-  const customShown = useMemo(() => filtered.filter((e) => e.source === 'custom'), [filtered])
-
   const toggleType = (t: ContentType): void => {
     setActiveTypes((prev) => {
       const next = new Set(prev)
@@ -150,7 +148,7 @@ export function LibraryPage(): JSX.Element {
       else next.add(id)
       return next
     })
-  const selectAll = (): void => setSelectedIds(new Set(customShown.map((e) => e.id)))
+  const selectAll = (): void => setSelectedIds(new Set(filtered.map((e) => e.id)))
 
   const resetTabView = (id: string): void => {
     setTab(id)
@@ -235,7 +233,7 @@ export function LibraryPage(): JSX.Element {
             ids={[...selectedIds]}
             onClear={clearSelection}
             onSelectAll={selectAll}
-            totalShown={customShown.length}
+            totalShown={filtered.length}
           />
         )}
 
