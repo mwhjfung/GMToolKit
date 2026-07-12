@@ -4,8 +4,20 @@ import { join } from 'path'
 import { secretsStore } from './secrets'
 import { setupUpdater } from './updater'
 
+// A second launch (app already running in the background, or opened twice)
+// would otherwise start a second process pointed at the same userData
+// directory — Chromium's IndexedDB takes an exclusive on-disk lock per
+// origin, so the second instance can silently never read or write any
+// content (including SRD sync). Refuse the second launch and focus the
+// existing window instead.
+if (!app.requestSingleInstanceLock()) {
+  app.quit()
+}
+
+let mainWindow: BrowserWindow | null = null
+
 function createWindow(): BrowserWindow {
-  const mainWindow = new BrowserWindow({
+  const win = new BrowserWindow({
     width: 1440,
     height: 900,
     minWidth: 640,
@@ -23,22 +35,26 @@ function createWindow(): BrowserWindow {
     }
   })
 
-  mainWindow.on('ready-to-show', () => mainWindow.show())
+  win.on('ready-to-show', () => win.show())
+  win.on('closed', () => {
+    if (mainWindow === win) mainWindow = null
+  })
 
   // Open external links in the default browser, never inside the app.
-  mainWindow.webContents.setWindowOpenHandler((details) => {
+  win.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
     return { action: 'deny' }
   })
 
   const rendererUrl = process.env['ELECTRON_RENDERER_URL']
   if (rendererUrl) {
-    mainWindow.loadURL(rendererUrl)
+    win.loadURL(rendererUrl)
   } else {
-    mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+    win.loadFile(join(__dirname, '../renderer/index.html'))
   }
 
-  return mainWindow
+  mainWindow = win
+  return win
 }
 
 function registerIpc(): void {
@@ -73,12 +89,19 @@ app.whenReady().then(() => {
   })
 
   registerIpc()
-  const mainWindow = createWindow()
-  setupUpdater(mainWindow)
+  const win = createWindow()
+  setupUpdater(win)
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
+})
+
+app.on('second-instance', () => {
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore()
+    mainWindow.focus()
+  }
 })
 
 app.on('window-all-closed', () => {

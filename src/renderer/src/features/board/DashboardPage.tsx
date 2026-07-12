@@ -15,6 +15,7 @@ import {
   MoveDiagonal2
 } from 'lucide-react'
 import GridLayout, { type Layout, type LayoutItem, type ResizeHandleAxis } from 'react-grid-layout'
+import { gridBounds, minMaxSize, type LayoutConstraint } from 'react-grid-layout/core'
 import 'react-grid-layout/css/styles.css'
 import 'react-resizable/css/styles.css'
 import { Page } from '@/components/Page'
@@ -728,6 +729,37 @@ function findFirstOpenSlot(
   }
 }
 
+/** Re-pack items into a gap-free sequence, using their current (possibly
+ * gap-having, just-dragged) positions only to determine the new reading
+ * order — top row first, then left to right — then placing each one in the
+ * next open slot in that order. A drag is effectively a reorder, not a free
+ * placement: there's never a lasting empty slot between cards, and nothing
+ * can end up sitting where the (separately, always-last) Add tile belongs. */
+function repackByReadingOrder(items: LayoutItem[], cols: number): LayoutItem[] {
+  const ordered = [...items].sort((a, b) => a.y - b.y || a.x - b.x)
+  const packed: LayoutItem[] = []
+  for (const item of ordered) {
+    const slot = findFirstOpenSlot(packed, cols, item.w, item.h)
+    packed.push({ ...item, x: slot.x, y: slot.y })
+  }
+  return packed
+}
+
+/** Position right after the last item in reading order (bottom row, then its
+ * rightmost edge) — unlike findFirstOpenSlot, this never jumps backward into
+ * a gap a user just created by dragging a card away from its old spot. Used
+ * for the Add tile specifically, since it visibly "teleporting" into a
+ * freshly-vacated gap after every drag was confusing. */
+function findEndSlot(items: LayoutItem[], cols: number, w: number): { x: number; y: number } {
+  if (items.length === 0) return { x: 0, y: 0 }
+  const maxY = items.reduce((max, it) => Math.max(max, it.y), 0)
+  const lastRow = items.filter((it) => it.y === maxY)
+  const rightEdge = lastRow.reduce((max, it) => Math.max(max, it.x + it.w), 0)
+  const rowHeight = lastRow.reduce((max, it) => Math.max(max, it.h), 1)
+  if (rightEdge + w <= cols) return { x: rightEdge, y: maxY }
+  return { x: 0, y: maxY + rowHeight }
+}
+
 function CardResizeHandle(_axis: ResizeHandleAxis, ref: Ref<HTMLElement>): ReactElement {
   return (
     <div
@@ -821,6 +853,40 @@ function PinnedBoard({ onAdd }: { onAdd: () => void }): JSX.Element {
   const [savedCardsPerRow, setSavedCardsPerRow] = useState<number | null>(null)
   const [loaded, setLoaded] = useState(false)
 
+  // A genuine drag/resize is followed by a native click on mouseup, which
+  // would otherwise pop open the card's detail drawer — annoying when all
+  // you're doing is rearranging. Only suppress it when the position/size
+  // actually changed, so a real click (no movement) still opens the card.
+  const suppressNextClickRef = useRef(false)
+
+  // While dragging (not resizing), cap the grid at the rows already in use
+  // so a card can't be dragged down past the last row into new, otherwise-
+  // empty space — reordering should only ever move a card among existing
+  // rows. Resizing still needs room to grow past the current bottom row
+  // (e.g. making the last row's card taller), so it's left uncapped.
+  const [dragMaxRows, setDragMaxRows] = useState<number | null>(null)
+  const onDragStart = (): void => {
+    const rows = displayLayout.reduce((max, item) => Math.max(max, item.y + item.h), 0)
+    setDragMaxRows(rows)
+  }
+
+  // A drag/resize is a reorder, not a free placement — repack (via persist,
+  // defined below) into a gap-free sequence in the new reading order so a
+  // card can never end up sitting past where the Add tile belongs, and there
+  // is never a lasting empty slot between cards.
+  const onDragOrResizeStop = (layout: Layout, oldItem: LayoutItem | null, newItem: LayoutItem | null): void => {
+    setDragMaxRows(null)
+    if (oldItem && newItem && (oldItem.x !== newItem.x || oldItem.y !== newItem.y || oldItem.w !== newItem.w || oldItem.h !== newItem.h)) {
+      suppressNextClickRef.current = true
+      persist(layout)
+    }
+  }
+  const consumeClickSuppression = (): boolean => {
+    if (!suppressNextClickRef.current) return false
+    suppressNextClickRef.current = false
+    return true
+  }
+
   useEffect(() => {
     setLoaded(false)
     void getSetting<unknown>(pinnedLayoutKey()).then((saved) => {
@@ -836,6 +902,22 @@ function PinnedBoard({ onAdd }: { onAdd: () => void }): JSX.Element {
       setLoaded(true)
     })
   }, [])
+
+  // Unpinning drops the card from view but its old saved x/y otherwise stays
+  // in this in-memory copy for the rest of the session — if the same card
+  // gets pinned again before a reload, it would reuse that stale position
+  // (sized for whatever layout existed back then) instead of getting a fresh
+  // slot. Prune it out as soon as a card leaves validPinnedIds so a same-
+  // session re-pin always re-flows cleanly. (The persisted copy is pruned
+  // separately, at unpin time, in contentStore.)
+  useEffect(() => {
+    if (!loaded) return
+    const validIds = new Set(validPinnedIds)
+    setSavedLayout((prev) => {
+      const pruned = prev.filter((item) => validIds.has(item.i))
+      return pruned.length === prev.length ? prev : pruned
+    })
+  }, [validPinnedIds, loaded])
 
   // Drop entries for cards no longer pinned; give newly-pinned cards (no
   // saved position yet) the first open slot, same as the Add tile below — so
@@ -866,7 +948,7 @@ function PinnedBoard({ onAdd }: { onAdd: () => void }): JSX.Element {
         minH: 1
       })
     }
-    const addSlot = findFirstOpenSlot(next, cardsPerRow, DEFAULT_CARD_W, DEFAULT_CARD_H)
+    const addSlot = findEndSlot(next, cardsPerRow, DEFAULT_CARD_W)
     next.push({
       i: ADD_TILE_ID,
       x: addSlot.x,
@@ -880,11 +962,34 @@ function PinnedBoard({ onAdd }: { onAdd: () => void }): JSX.Element {
 
   const layoutById = useMemo(() => new Map(displayLayout.map((l) => [l.i, l])), [displayLayout])
 
-  const persist = (next: Layout): void => {
-    const toSave = next.filter((l) => l.i !== ADD_TILE_ID)
-    setSavedLayout(toSave)
+  // Reject any drag target at or past the Add tile in reading order (same
+  // row, further right, or any row after) — Add is static so it already
+  // blocks landing directly on it, but cells beside/after it in an
+  // under-full row are otherwise free real estate a card could be dropped
+  // into. Clamping here (rather than only after drop) also keeps the drag
+  // placeholder itself from ever rendering in a disallowed cell.
+  const addPos = layoutById.get(ADD_TILE_ID)
+  const constraints = useMemo((): LayoutConstraint[] => {
+    if (!addPos) return [gridBounds, minMaxSize]
+    const noPastAdd: LayoutConstraint = {
+      name: 'noPastAdd',
+      constrainPosition(_item, x, y, ctx) {
+        const idx = y * ctx.cols + x
+        const addIdx = addPos.y * ctx.cols + addPos.x
+        if (idx < addIdx) return { x, y }
+        const clampedIdx = Math.max(0, addIdx - 1)
+        return { x: clampedIdx % ctx.cols, y: Math.floor(clampedIdx / ctx.cols) }
+      }
+    }
+    return [gridBounds, minMaxSize, noPastAdd]
+  }, [addPos?.x, addPos?.y])
+
+  const persist = (layout: Layout): void => {
+    const real = layout.filter((l) => l.i !== ADD_TILE_ID)
+    const repacked = repackByReadingOrder(real, cardsPerRow)
+    setSavedLayout(repacked)
     setSavedCardsPerRow(cardsPerRow)
-    void setSetting(pinnedLayoutKey(), { cardsPerRow, items: toSave } satisfies SavedPinnedLayout)
+    void setSetting(pinnedLayoutKey(), { cardsPerRow, items: repacked } satisfies SavedPinnedLayout)
   }
 
   if (pinned.length === 0) {
@@ -913,10 +1018,19 @@ function PinnedBoard({ onAdd }: { onAdd: () => void }): JSX.Element {
           <GridLayout
             width={width}
             layout={displayLayout}
-            onLayoutChange={persist}
-            gridConfig={{ cols: cardsPerRow, rowHeight, margin: CARD_MARGIN, containerPadding: [0, 0] }}
+            gridConfig={{
+              cols: cardsPerRow,
+              rowHeight,
+              margin: CARD_MARGIN,
+              containerPadding: [0, 0],
+              maxRows: dragMaxRows ?? Infinity
+            }}
             dragConfig={{ handle: '.card-drag-handle', cancel: 'button', threshold: 8 }}
             resizeConfig={{ handles: ['se'], handleComponent: CardResizeHandle }}
+            constraints={constraints}
+            onDragStart={onDragStart}
+            onDragStop={onDragOrResizeStop}
+            onResizeStop={onDragOrResizeStop}
           >
             {pinned.map((entry) => {
               const h = layoutById.get(entry.id)?.h ?? DEFAULT_CARD_H
@@ -928,6 +1042,7 @@ function PinnedBoard({ onAdd }: { onAdd: () => void }): JSX.Element {
                     draggable
                     dragHandleClassName="card-drag-handle"
                     summaryMaxLines={maxLines}
+                    onBeforeClick={consumeClickSuppression}
                   />
                 </div>
               )

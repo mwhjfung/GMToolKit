@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, type DragEvent } from 'react'
 import { X, FileUp, Loader2, AlertTriangle, Info, Sparkles } from 'lucide-react'
 import { extractText } from '@/lib/import/extractText'
 import { splitEntries, type SplitStrategy, type ImportType } from '@/lib/import/splitEntries'
@@ -13,6 +13,18 @@ import { parseJson } from '@/lib/import/parseJson'
 import { cn } from '@/lib/cn'
 
 type Phase = 'pick' | 'parsing' | 'review' | 'json-review' | 'error'
+type ImportMode = 'documents' | 'json'
+
+const DOC_EXTENSIONS = ['.docx', '.pdf', '.txt', '.md', '.markdown']
+
+function acceptedExtensions(mode: ImportMode): string[] {
+  return mode === 'json' ? ['.json'] : DOC_EXTENSIONS
+}
+
+function filterAccepted(list: File[], mode: ImportMode): File[] {
+  const exts = acceptedExtensions(mode)
+  return list.filter((f) => exts.some((ext) => f.name.toLowerCase().endsWith(ext)))
+}
 
 const STRATEGIES: Array<{ value: SplitStrategy; label: string; desc: string }> = [
   {
@@ -30,16 +42,43 @@ export function ImportDialog(): JSX.Element {
   const importDefaultWorld = useUiStore((s) => s.importDefaultWorld)
   const hasKey = useSettingsStore((s) => s.hasKey)
   const [phase, setPhase] = useState<Phase>('pick')
+  const [mode, setMode] = useState<ImportMode>('documents')
   const [files, setFiles] = useState<File[]>([])
   const [type, setType] = useState<ImportType>('mixed')
   const [strategy, setStrategy] = useState<SplitStrategy>('headings')
   const [useClaude, setUseClaude] = useState(false)
   const [source, setSource] = useState(importDefaultWorld)
+  const [isDragging, setIsDragging] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const isJson = files.length > 0 && files.every((f) => f.name.toLowerCase().endsWith('.json'))
+  const isJson = mode === 'json'
   const [drafts, setDrafts] = useState<ContentEntry[]>([])
   const [error, setError] = useState('')
   const [smartProgress, setSmartProgress] = useState<SmartParseProgress | null>(null)
+
+  const switchMode = (m: ImportMode): void => {
+    setMode(m)
+    setFiles([])
+    setPhase('pick')
+    setError('')
+  }
+
+  // Documents are parsed one at a time (parse() below only reads files[0]),
+  // so a drop or multi-select there keeps just the first match; JSON entries
+  // merge cleanly across files, so all accepted files are kept.
+  const applyFiles = (list: File[]): void => {
+    const accepted = filterAccepted(list, mode)
+    if (!accepted.length) return
+    setFiles(mode === 'json' ? accepted : [accepted[0]])
+    setPhase('pick')
+    setError('')
+  }
+
+  const onDrop = (e: DragEvent<HTMLDivElement>): void => {
+    e.preventDefault()
+    setIsDragging(false)
+    applyFiles(Array.from(e.dataTransfer.files))
+  }
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
@@ -105,34 +144,89 @@ export function ImportDialog(): JSX.Element {
         ) : phase === 'json-review' ? (
           <JsonBatchReview drafts={drafts} sourceName={source} onClose={closeImport} />
         ) : (
-          <div className="panel w-[520px] max-w-full">
-            <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <div className="panel flex max-h-[85vh] w-[520px] max-w-full flex-col">
+            <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
               <h2 className="text-sm font-semibold text-ink">Import</h2>
               <button type="button" className="icon-btn" onClick={closeImport}>
                 <X size={16} />
               </button>
             </div>
 
-            <div className="space-y-4 p-4">
+            <div className="flex shrink-0 items-center gap-1 border-b border-border px-4">
+              {(['documents', 'json'] as ImportMode[]).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => switchMode(m)}
+                  className={cn(
+                    'whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium transition-colors',
+                    mode === m
+                      ? 'border-accent text-ink'
+                      : 'border-transparent text-ink-muted hover:text-ink'
+                  )}
+                >
+                  {m === 'documents' ? 'Documents' : 'JSON'}
+                </button>
+              ))}
+            </div>
+
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
               <p className="text-sm text-ink-muted">
-                Bring in a <strong className="text-ink">JSON file</strong> from 5etools (or a
-                pre-converted export) for bulk import, or a{' '}
-                <strong className="text-ink">Word, PDF, text or markdown</strong> file to parse
-                into individual drafts. Nothing leaves your machine.
+                {mode === 'json' ? (
+                  <>
+                    Bring in one or more <strong className="text-ink">JSON files</strong> from
+                    5etools (or a pre-converted export) for bulk import. Nothing leaves your machine.
+                  </>
+                ) : (
+                  <>
+                    Bring in a <strong className="text-ink">Word, PDF, text or markdown</strong>{' '}
+                    file to parse into individual drafts. Nothing leaves your machine.
+                  </>
+                )}
               </p>
 
               <div>
-                <label className="label">File</label>
-                <input
-                  type="file"
-                  accept=".docx,.pdf,.txt,.md,.markdown,.json"
-                  multiple
-                  onChange={(e) => {
-                    setFiles(Array.from(e.target.files ?? []))
-                    setPhase('pick')
+                <label className="label">{mode === 'json' ? 'Files' : 'File'}</label>
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={(e) => {
+                    e.preventDefault()
+                    setIsDragging(true)
                   }}
-                  className="block w-full text-sm text-ink-muted file:mr-3 file:rounded-md file:border-0 file:bg-surface-3 file:px-3 file:py-1.5 file:text-sm file:text-ink hover:file:bg-border-strong"
-                />
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={onDrop}
+                  className={cn(
+                    'flex cursor-pointer flex-col items-center gap-1 rounded-md border-2 border-dashed p-4 text-center transition-colors',
+                    isDragging ? 'border-accent bg-accent/10' : 'border-border hover:border-border-strong'
+                  )}
+                >
+                  <FileUp size={18} className={isDragging ? 'text-accent' : 'text-ink-muted'} />
+                  {files.length === 0 ? (
+                    <>
+                      <div className="text-sm text-ink">
+                        Drag {mode === 'json' ? 'JSON files' : 'a file'} here, or click to browse
+                      </div>
+                      <div className="text-xs text-ink-muted">
+                        {mode === 'json'
+                          ? 'You can drop multiple .json files at once.'
+                          : DOC_EXTENSIONS.join(', ')}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-sm text-ink">
+                      {files.length === 1 ? files[0].name : `${files.length} files selected`}
+                    </div>
+                  )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept={acceptedExtensions(mode).join(',')}
+                    multiple={mode === 'json'}
+                    onChange={(e) => applyFiles(Array.from(e.target.files ?? []))}
+                    onClick={(e) => e.stopPropagation()}
+                    className="hidden"
+                  />
+                </div>
               </div>
 
               {!isJson && (
@@ -263,7 +357,7 @@ export function ImportDialog(): JSX.Element {
               )}
             </div>
 
-            <div className="flex items-center justify-end gap-2 border-t border-border px-4 py-3">
+            <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border px-4 py-3">
               <button type="button" className="btn-ghost" onClick={closeImport}>
                 Cancel
               </button>

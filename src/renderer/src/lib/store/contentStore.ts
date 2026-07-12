@@ -6,6 +6,7 @@ import {
   bulkPutContent,
   deleteContent,
   syncSrd,
+  removeSrd as removeSrdFromDb,
   getSetting,
   setSetting,
   type SyncProgress
@@ -15,11 +16,25 @@ import { getActiveSessionId } from './activeSession'
 
 // Pins are per-campaign + per-session (each session has its own board).
 const pinsKey = (): string => `pinnedIds:${getActiveCampaignId()}:${getActiveSessionId()}`
+// Matches DashboardPage's pinnedLayoutKey() — same per-campaign/session scope.
+const pinnedLayoutKey = (): string => `pinnedLayout:${getActiveCampaignId()}:${getActiveSessionId()}`
 // The custom-source registry is global (sources carry their own campaign info).
 const SOURCES_KEY = 'sources'
 
 const persistPins = (ids: string[]): void => {
   void setSetting(pinsKey(), ids)
+}
+
+// Unpinning leaves the card's saved grid position behind — if the same card
+// gets pinned again later, that stale x/y (sized for whatever layout existed
+// back then) gets reused as-is, which can reintroduce a gap. Drop it from
+// the saved board layout too so a re-pin always gets a fresh slot.
+const pruneSavedLayout = async (id: string): Promise<void> => {
+  const saved = await getSetting<{ cardsPerRow: number; items: Array<{ i: string }> }>(pinnedLayoutKey())
+  if (!saved || !Array.isArray(saved.items)) return
+  const items = saved.items.filter((item) => item.i !== id)
+  if (items.length === saved.items.length) return
+  await setSetting(pinnedLayoutKey(), { ...saved, items })
 }
 
 const uuid = (): string =>
@@ -115,6 +130,8 @@ interface ContentState {
   /** Reload just the pinned-board list (called on campaign switch). */
   loadPins: () => Promise<void>
   sync: () => Promise<void>
+  /** Remove all SRD content and remember that choice so it doesn't come back on next launch. */
+  removeSrd: () => Promise<void>
   upsert: (entry: ContentEntry) => Promise<void>
   remove: (id: string) => Promise<void>
   /** Sources visible in the active campaign, in creation order. */
@@ -186,6 +203,16 @@ export const useContentStore = create<ContentState>((set, get) => ({
 
     set({ items, sources, pinnedIds: pins ?? [], loaded: true })
     set({ visibleItems: computeVisible(items, sources) })
+
+    // First launch (or a wiped database): there's no SRD content yet and the
+    // user has never had a chance to click "Re-sync" — do it for them so the
+    // Library isn't empty on first open. Skip it if they've deliberately
+    // removed SRD content before — that's an explicit choice, not something
+    // to silently undo on next launch.
+    if (!items.some((e) => e.source === 'srd')) {
+      const srdDisabled = await getSetting<boolean>('srdDisabled')
+      if (!srdDisabled) await get().sync()
+    }
   },
 
   refreshForCampaign: () => {
@@ -203,9 +230,25 @@ export const useContentStore = create<ContentState>((set, get) => ({
       await syncSrd((p) => set({ syncProgress: p }))
       const items = await getAllContent()
       set({ items, visibleItems: computeVisible(items, get().sources) })
+    } catch (err) {
+      // Previously swallowed silently by callers doing `void sync()` — log
+      // it so a real failure (e.g. IndexedDB locked by another running
+      // instance) is at least visible in devtools instead of just doing
+      // nothing when the user clicks Re-sync.
+      console.error('SRD sync failed:', err)
+      throw err
     } finally {
       set({ syncing: false, syncProgress: null })
     }
+  },
+
+  removeSrd: async () => {
+    await removeSrdFromDb()
+    const items = await getAllContent()
+    const knownIds = new Set(items.map((e) => e.id))
+    const pinnedIds = get().pinnedIds.filter((id) => knownIds.has(id))
+    set({ items, visibleItems: computeVisible(items, get().sources), pinnedIds })
+    persistPins(pinnedIds)
   },
 
   upsert: async (entry) => {
@@ -396,6 +439,7 @@ export const useContentStore = create<ContentState>((set, get) => ({
     const next = get().pinnedIds.filter((p) => p !== id)
     set({ pinnedIds: next })
     persistPins(next)
+    void pruneSavedLayout(id)
   },
 
   togglePin: (id) => {

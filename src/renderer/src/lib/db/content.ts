@@ -31,6 +31,11 @@ export async function deleteContent(id: string): Promise<void> {
   await db.content.delete(id)
 }
 
+export async function bulkDeleteContent(ids: string[]): Promise<void> {
+  for (const id of ids) invalidateHaystack(id)
+  await db.content.bulkDelete(ids)
+}
+
 export interface ContentFilter {
   source?: ContentSource
   types?: ContentType[]
@@ -105,7 +110,17 @@ export async function syncSrd(onProgress?: (p: SyncProgress) => void): Promise<{
     onProgress?.({ label: group.label, done: i + 1, total, count: toWrite.length })
   }
   await setSetting('srdSyncedAt', Date.now())
+  await setSetting('srdDisabled', false)
   return { entries }
+}
+
+/** Remove all SRD content from the local database. Doesn't touch the
+ * bundled dataset itself — Re-sync brings it all back. Marks SRD as
+ * user-disabled so the app doesn't silently re-download it on next launch. */
+export async function removeSrd(): Promise<void> {
+  const ids = await db.content.where('source').equals('srd').primaryKeys()
+  await bulkDeleteContent(ids as string[])
+  await setSetting('srdDisabled', true)
 }
 
 // ---- generic settings (non-secret) ----------------------------------------

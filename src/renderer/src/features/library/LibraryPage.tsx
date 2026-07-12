@@ -12,7 +12,8 @@ import {
   FileDown,
   ChevronDown,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Trash2
 } from 'lucide-react'
 import { Page } from '@/components/Page'
 import { EmptyState } from '@/components/EmptyState'
@@ -35,6 +36,7 @@ export function LibraryPage(): JSX.Element {
   const visibleItems = useContentStore((s) => s.visibleItems)
   const sources = useContentStore((s) => s.sources)
   const sync = useContentStore((s) => s.sync)
+  const removeSrd = useContentStore((s) => s.removeSrd)
   const syncing = useContentStore((s) => s.syncing)
   const syncProgress = useContentStore((s) => s.syncProgress)
   const activeId = useCampaignStore((s) => s.activeId)
@@ -176,10 +178,29 @@ export function LibraryPage(): JSX.Element {
   const actions = (
     <>
       {isSrd && srdCount > 0 && (
-        <button type="button" className="btn-ghost" disabled={syncing} onClick={() => void sync()}>
-          {syncing ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
-          Re-sync
-        </button>
+        <>
+          <button type="button" className="btn-ghost" disabled={syncing} onClick={() => void sync()}>
+            {syncing ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
+            Re-sync
+          </button>
+          <button
+            type="button"
+            className="btn-ghost"
+            disabled={syncing}
+            onClick={() => {
+              if (
+                window.confirm(
+                  `Remove all ${srdCount} SRD entries? Your own content is unaffected, and you can bring SRD back any time with Re-sync.`
+                )
+              ) {
+                void removeSrd()
+              }
+            }}
+          >
+            <Trash2 size={15} />
+            Remove SRD
+          </button>
+        </>
       )}
       {activeSource && (
         <button
@@ -194,6 +215,10 @@ export function LibraryPage(): JSX.Element {
       <button type="button" className="btn-ghost" onClick={() => setExportOpen(true)}>
         <FileDown size={15} />
         Export
+      </button>
+      <button type="button" className="btn-ghost" onClick={() => openImport(activeSource?.name)}>
+        <Upload size={15} />
+        Import
       </button>
       <button type="button" className="btn-accent" onClick={() => setAddOpen(true)}>
         <Plus size={15} />

@@ -16,6 +16,10 @@ interface ContentCardProps {
    * with a trailing "…" rather than cutting off mid-line — resizing the card
    * taller passes a bigger number here, revealing more. */
   summaryMaxLines?: number
+  /** Pinned board only: called before opening the drawer on click. Return
+   * true to skip opening — used to swallow the native click a drag/resize
+   * leaves behind, so rearranging cards doesn't also pop one open. */
+  onBeforeClick?: () => boolean
   /** When provided (custom entries only), a selection checkbox is shown. */
   onToggleSelect?: () => void
   selected?: boolean
@@ -26,6 +30,7 @@ export function ContentCard({
   draggable,
   dragHandleClassName,
   summaryMaxLines,
+  onBeforeClick,
   onToggleSelect,
   selected
 }: ContentCardProps): JSX.Element {
@@ -38,7 +43,10 @@ export function ContentCard({
     <div
       role="button"
       tabIndex={0}
-      onClick={() => openDrawer(entry.id)}
+      onClick={() => {
+        if (onBeforeClick?.()) return
+        openDrawer(entry.id)
+      }}
       onKeyDown={(e) => {
         if (e.key === 'Enter') openDrawer(entry.id)
       }}
