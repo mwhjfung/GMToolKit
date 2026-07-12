@@ -1,19 +1,22 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactElement,
+  type ReactNode,
+  type Ref
+} from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   LayoutGrid, Maximize2, Minimize2, Plus, Archive, Pencil,
-  X, Check, Trash2, RotateCcw, Users, Copy, Search, PanelRightClose, Pin, SquareCheck
+  X, Check, Trash2, RotateCcw, Users, Copy, Search, PanelRightClose, Pin, SquareCheck,
+  MoveDiagonal2
 } from 'lucide-react'
-import {
-  DndContext,
-  closestCenter,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent
-} from '@dnd-kit/core'
-import { SortableContext, useSortable, arrayMove, rectSortingStrategy } from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
+import GridLayout, { type Layout, type LayoutItem, type ResizeHandleAxis } from 'react-grid-layout'
+import 'react-grid-layout/css/styles.css'
+import 'react-resizable/css/styles.css'
 import { Page } from '@/components/Page'
 import { EmptyState } from '@/components/EmptyState'
 import { ContentCard } from '@/components/ContentCard'
@@ -29,6 +32,7 @@ import { NotesPanel } from './NotesPanel'
 import { SessionDialog } from './SessionDialog'
 import { getSetting, setSetting } from '@/lib/db/content'
 import { getActiveCampaignId } from '@/lib/store/activeCampaign'
+import { getActiveSessionId } from '@/lib/store/activeSession'
 import { CONTENT_TYPE_LABELS } from '@/types/content'
 import type { ContentEntry, ContentType } from '@/types/content'
 import { useNotesStore } from '@/lib/store/notesStore'
@@ -110,7 +114,7 @@ export function DashboardPage(): JSX.Element {
         {/* content */}
         <div className="min-h-0 flex-1">
           {mainTab === 'latest' ? (
-            <div className="h-full p-4">
+            <div className="h-full overflow-y-auto p-4">
               {expanded ? (
                 <div className="h-full">
                   {expanded === 'initiative' ? (
@@ -138,14 +142,14 @@ export function DashboardPage(): JSX.Element {
                       onToggle={() => setExpanded('pins')}
                     />
                   </div>
-                  <div className="flex min-h-0 gap-4" style={{ flexGrow: 40, flexBasis: 0 }}>
-                    <div className="min-w-0 flex-1">
+                  <div className="flex min-h-0 flex-wrap gap-4" style={{ flexGrow: 40, flexBasis: 0 }}>
+                    <div className="min-w-[300px] flex-1 basis-[300px]">
                       <InitiativeDashSection
                         expanded={false}
                         onToggle={() => setExpanded('initiative')}
                       />
                     </div>
-                    <div className="min-w-0 flex-1">
+                    <div className="min-w-[300px] flex-1 basis-[300px]">
                       <NotesDashSection
                         expanded={false}
                         onToggle={() => setExpanded('notes')}
@@ -633,7 +637,9 @@ function PinsDashSection({
 
   return (
     <div className="panel flex h-full min-h-0 flex-col overflow-hidden">
-      <div className="flex shrink-0 items-center justify-between border-b border-border px-3 py-2">
+      {/* px-4 (not the px-3 other panel headers use) to line up with the
+          cards grid below, which sits at a 16px (p-4) inset. */}
+      <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-2">
         <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Pinned cards</span>
         <div className="flex items-center gap-1.5">
           <button
@@ -664,25 +670,142 @@ function PinsDashSection({
 
 // ---- pinned cards board ----------------------------------------------------
 
-function SortableCard({ entry }: { entry: ContentEntry }): JSX.Element {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: entry.id
-  })
+// One grid column/row = exactly one card's width/height, so resizing steps in
+// whole cards (2 wide, 2 tall, ...) instead of arbitrary pixel amounts. Both
+// the column count and the row height scale with the panel's actual size
+// (cardsPerRowFor / rowHeightFor) so cards fill it edge to edge in both
+// directions — targeting ~5 across and ~3 visible rows at a typical panel
+// size, more/fewer at other sizes, rather than a fixed pixel grid.
+const CARD_MARGIN: [number, number] = [12, 12]
+const DEFAULT_CARD_W = 1
+const DEFAULT_CARD_H = 1
+const IDEAL_CARD_WIDTH = 220
+const TARGET_VISIBLE_ROWS = 3
+const MIN_ROW_HEIGHT = 70
+const ADD_TILE_ID = '__add__'
+
+// Rough estimate of everything above the summary text (padding, badge row,
+// name line) so its available height — and therefore how many lines of
+// summary text fit — can be derived from the card's actual pixel height.
+const CARD_CONTENT_OVERHEAD = 80
+const SUMMARY_LINE_HEIGHT = 20
+
+function cardHeightPx(h: number, rowHeightPx: number): number {
+  return h * rowHeightPx + Math.max(0, h - 1) * CARD_MARGIN[1]
+}
+
+function summaryMaxLinesFor(heightPx: number): number {
+  return Math.max(1, Math.floor((heightPx - CARD_CONTENT_OVERHEAD) / SUMMARY_LINE_HEIGHT))
+}
+
+function cardsPerRowFor(width: number): number {
+  // Round rather than floor — flooring always biases toward cards wider than
+  // ideal (sometimes a lot, right after a column drops); rounding keeps
+  // actual card width closer to IDEAL_CARD_WIDTH on average.
+  return Math.max(1, Math.round(width / IDEAL_CARD_WIDTH))
+}
+
+function rowHeightFor(height: number): number {
+  const perRow = (height - CARD_MARGIN[1] * (TARGET_VISIBLE_ROWS + 1)) / TARGET_VISIBLE_ROWS
+  return Math.max(MIN_ROW_HEIGHT, perRow)
+}
+
+/** First (x, y) an item of size w×h doesn't overlap any existing item, scanning
+ * left to right then top to bottom — so a tile continues the current row if
+ * there's room instead of always dropping to a fresh one. */
+function findFirstOpenSlot(
+  items: LayoutItem[],
+  cols: number,
+  w: number,
+  h: number
+): { x: number; y: number } {
+  const overlaps = (x: number, y: number): boolean =>
+    items.some((it) => x < it.x + it.w && x + w > it.x && y < it.y + it.h && y + h > it.y)
+  for (let y = 0; ; y += 1) {
+    for (let x = 0; x <= cols - w; x += 1) {
+      if (!overlaps(x, y)) return { x, y }
+    }
+  }
+}
+
+function CardResizeHandle(_axis: ResizeHandleAxis, ref: Ref<HTMLElement>): ReactElement {
   return (
     <div
-      ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={cn(isDragging && 'z-10 opacity-60')}
+      ref={ref as Ref<HTMLDivElement>}
+      className="react-resizable-handle react-resizable-handle-se z-10 flex !h-6 !w-6 cursor-se-resize items-center justify-center rounded-tl-md bg-surface-3/80 text-ink-muted hover:text-ink"
     >
-      <ContentCard entry={entry} dragHandle={{ ...attributes, ...listeners }} />
+      <MoveDiagonal2 size={13} className="pointer-events-none" />
     </div>
   )
+}
+
+const pinnedLayoutKey = (): string =>
+  `pinnedLayout:${getActiveCampaignId()}:${getActiveSessionId()}`
+
+/** Saved alongside the positions themselves — if the panel's current column
+ * count doesn't match what the layout was saved under (window/panel
+ * resized to a different width bracket since), the old x/y values no longer
+ * make sense: cards would leave newly-available columns sitting empty
+ * forever since they just keep reusing coordinates sized for the old column
+ * count. Detecting the mismatch and re-flowing everything beats a
+ * permanently stuck gap. */
+interface SavedPinnedLayout {
+  cardsPerRow: number
+  items: Layout
+}
+
+function isSavedPinnedLayout(value: unknown): value is SavedPinnedLayout {
+  return (
+    !!value &&
+    typeof value === 'object' &&
+    typeof (value as SavedPinnedLayout).cardsPerRow === 'number' &&
+    Array.isArray((value as SavedPinnedLayout).items)
+  )
+}
+
+/** Tracks a container's pixel size — the grid needs an explicit width to lay
+ * out, and height to fit a target number of visible rows without scrolling. */
+function useContainerSize(): {
+  width: number
+  height: number
+  ref: (el: HTMLDivElement | null) => void
+} {
+  const elRef = useRef<HTMLDivElement | null>(null)
+  const [size, setSize] = useState({ width: 0, height: 0 })
+
+  // Stable across renders — an inline ref callback is treated as a new ref on
+  // every render, which re-attaches and re-runs setState in a loop.
+  const measure = useCallback((): void => {
+    const el = elRef.current
+    if (!el) return
+    setSize((prev) => {
+      const next = { width: el.clientWidth, height: el.clientHeight }
+      return prev.width === next.width && prev.height === next.height ? prev : next
+    })
+  }, [])
+
+  const ref = useCallback(
+    (el: HTMLDivElement | null): void => {
+      elRef.current = el
+      measure()
+    },
+    [measure]
+  )
+
+  useEffect(() => {
+    const el = elRef.current
+    if (!el) return
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [measure])
+
+  return { ...size, ref }
 }
 
 function PinnedBoard({ onAdd }: { onAdd: () => void }): JSX.Element {
   const items = useContentStore((s) => s.items)
   const pinnedIds = useContentStore((s) => s.pinnedIds)
-  const reorderPins = useContentStore((s) => s.reorderPins)
 
   const byId = useMemo(() => new Map(items.map((i) => [i.id, i])), [items])
   const validPinnedIds = useMemo(() => pinnedIds.filter((id) => byId.has(id)), [pinnedIds, byId])
@@ -691,14 +814,77 @@ function PinnedBoard({ onAdd }: { onAdd: () => void }): JSX.Element {
     [validPinnedIds, byId]
   )
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
-  const onDragEnd = (e: DragEndEvent): void => {
-    const { active, over } = e
-    if (over && active.id !== over.id) {
-      const oldIndex = validPinnedIds.indexOf(active.id as string)
-      const newIndex = validPinnedIds.indexOf(over.id as string)
-      reorderPins(arrayMove(validPinnedIds, oldIndex, newIndex))
+  const { width, height, ref } = useContainerSize()
+  const cardsPerRow = cardsPerRowFor(width)
+  const rowHeight = rowHeightFor(height)
+  const [savedLayout, setSavedLayout] = useState<Layout>([])
+  const [savedCardsPerRow, setSavedCardsPerRow] = useState<number | null>(null)
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    setLoaded(false)
+    void getSetting<unknown>(pinnedLayoutKey()).then((saved) => {
+      if (isSavedPinnedLayout(saved)) {
+        setSavedLayout(saved.items)
+        setSavedCardsPerRow(saved.cardsPerRow)
+      } else {
+        // Old plain-array format, or nothing saved yet — cardsPerRow unknown,
+        // so treat as a mismatch below and let everything re-flow fresh.
+        setSavedLayout(Array.isArray(saved) ? (saved as Layout) : [])
+        setSavedCardsPerRow(null)
+      }
+      setLoaded(true)
+    })
+  }, [])
+
+  // Drop entries for cards no longer pinned; give newly-pinned cards (no
+  // saved position yet) the first open slot, same as the Add tile below — so
+  // the Add tile always sits exactly where the next new card would land,
+  // continuing the current row if there's room rather than always starting
+  // a fresh one. If the column count doesn't match what was saved (panel
+  // resized to a different width bracket), the old x/y values would leave
+  // the newly-available column(s) permanently empty — ignore them and
+  // re-flow everything fresh instead.
+  const displayLayout = useMemo(() => {
+    const columnsMatch = savedCardsPerRow === cardsPerRow
+    const known = new Map(columnsMatch ? savedLayout.map((l) => [l.i, l]) : [])
+    const next: LayoutItem[] = []
+    for (const id of validPinnedIds) {
+      const existing = known.get(id)
+      if (existing) {
+        next.push(existing)
+        continue
+      }
+      const slot = findFirstOpenSlot(next, cardsPerRow, DEFAULT_CARD_W, DEFAULT_CARD_H)
+      next.push({
+        i: id,
+        x: slot.x,
+        y: slot.y,
+        w: DEFAULT_CARD_W,
+        h: DEFAULT_CARD_H,
+        minW: 1,
+        minH: 1
+      })
     }
+    const addSlot = findFirstOpenSlot(next, cardsPerRow, DEFAULT_CARD_W, DEFAULT_CARD_H)
+    next.push({
+      i: ADD_TILE_ID,
+      x: addSlot.x,
+      y: addSlot.y,
+      w: DEFAULT_CARD_W,
+      h: DEFAULT_CARD_H,
+      static: true
+    })
+    return next
+  }, [savedLayout, savedCardsPerRow, validPinnedIds, cardsPerRow])
+
+  const layoutById = useMemo(() => new Map(displayLayout.map((l) => [l.i, l])), [displayLayout])
+
+  const persist = (next: Layout): void => {
+    const toSave = next.filter((l) => l.i !== ADD_TILE_ID)
+    setSavedLayout(toSave)
+    setSavedCardsPerRow(cardsPerRow)
+    void setSetting(pinnedLayoutKey(), { cardsPerRow, items: toSave } satisfies SavedPinnedLayout)
   }
 
   if (pinned.length === 0) {
@@ -718,23 +904,47 @@ function PinnedBoard({ onAdd }: { onAdd: () => void }): JSX.Element {
 
   return (
     <div className="h-full overflow-y-auto p-4">
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-        <SortableContext items={validPinnedIds} strategy={rectSortingStrategy}>
-          <div className="grid auto-rows-fr grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
-            {pinned.map((entry) => (
-              <SortableCard key={entry.id} entry={entry} />
-            ))}
-            <button
-              type="button"
-              onClick={onAdd}
-              className="btn-accent flex h-full min-h-[92px] flex-col items-center justify-center gap-1.5"
-            >
-              <Plus size={18} />
-              Add
-            </button>
-          </div>
-        </SortableContext>
-      </DndContext>
+      {/* clientWidth/clientHeight of the padded div above would include the
+          padding itself, telling the grid it has more room than it actually
+          does and leaving a gap on the right — measure this inner,
+          padding-free wrapper instead so it matches the grid's real space. */}
+      <div ref={ref} className="h-full w-full">
+        {width > 0 && height > 0 && loaded && (
+          <GridLayout
+            width={width}
+            layout={displayLayout}
+            onLayoutChange={persist}
+            gridConfig={{ cols: cardsPerRow, rowHeight, margin: CARD_MARGIN, containerPadding: [0, 0] }}
+            dragConfig={{ handle: '.card-drag-handle', cancel: 'button', threshold: 8 }}
+            resizeConfig={{ handles: ['se'], handleComponent: CardResizeHandle }}
+          >
+            {pinned.map((entry) => {
+              const h = layoutById.get(entry.id)?.h ?? DEFAULT_CARD_H
+              const maxLines = summaryMaxLinesFor(cardHeightPx(h, rowHeight))
+              return (
+                <div key={entry.id} className="h-full w-full overflow-hidden">
+                  <ContentCard
+                    entry={entry}
+                    draggable
+                    dragHandleClassName="card-drag-handle"
+                    summaryMaxLines={maxLines}
+                  />
+                </div>
+              )
+            })}
+            <div key={ADD_TILE_ID} className="h-full w-full">
+              <button
+                type="button"
+                onClick={onAdd}
+                className="btn-accent flex h-full w-full flex-col items-center justify-center gap-1.5"
+              >
+                <Plus size={18} />
+                Add
+              </button>
+            </div>
+          </GridLayout>
+        )}
+      </div>
     </div>
   )
 }

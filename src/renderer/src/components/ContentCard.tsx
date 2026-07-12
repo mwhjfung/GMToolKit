@@ -1,4 +1,4 @@
-import { Pin } from 'lucide-react'
+import { GripVertical, Pin } from 'lucide-react'
 import type { ContentEntry } from '@/types/content'
 import { TypeBadge, SourceTag } from './ContentBadge'
 import { useUiStore } from '@/lib/store/uiStore'
@@ -7,14 +7,28 @@ import { cn } from '@/lib/cn'
 
 interface ContentCardProps {
   entry: ContentEntry
-  /** Optional drag handle props (from dnd-kit) for pinned cards. */
-  dragHandle?: React.HTMLAttributes<HTMLElement>
+  /** Shows a visible grip handle (pinned board cards, which are draggable/resizable there). */
+  draggable?: boolean
+  /** CSS class the drag library targets to start a drag from the handle. */
+  dragHandleClassName?: string
+  /** Pinned board only: how many lines of summary text the card's current
+   * height has room for. Wrapped text is clamped to exactly this many lines
+   * with a trailing "…" rather than cutting off mid-line — resizing the card
+   * taller passes a bigger number here, revealing more. */
+  summaryMaxLines?: number
   /** When provided (custom entries only), a selection checkbox is shown. */
   onToggleSelect?: () => void
   selected?: boolean
 }
 
-export function ContentCard({ entry, dragHandle, onToggleSelect, selected }: ContentCardProps): JSX.Element {
+export function ContentCard({
+  entry,
+  draggable,
+  dragHandleClassName,
+  summaryMaxLines,
+  onToggleSelect,
+  selected
+}: ContentCardProps): JSX.Element {
   const openDrawer = useUiStore((s) => s.openDrawer)
   const pinned = useContentStore((s) => s.pinnedIds.includes(entry.id))
   const togglePin = useContentStore((s) => s.togglePin)
@@ -30,8 +44,13 @@ export function ContentCard({ entry, dragHandle, onToggleSelect, selected }: Con
       }}
       className={cn(
         'panel group flex h-full cursor-pointer gap-2 p-3 text-left transition-colors focus:border-accent focus:outline-none',
-        selected ? 'border-accent/70 ring-1 ring-accent/40' : 'hover:border-border-strong'
+        selected ? 'border-accent/70 ring-1 ring-accent/40' : 'hover:border-border-strong',
+        // The whole card is the drag handle (pinned board), not just a sub-element —
+        // select-none keeps a drag attempt from turning into a text selection.
+        draggable && dragHandleClassName,
+        draggable && 'cursor-grab select-none active:cursor-grabbing'
       )}
+      title={draggable ? 'Drag to move or resize' : undefined}
     >
       {selectable && (
         <input
@@ -45,7 +64,8 @@ export function ContentCard({ entry, dragHandle, onToggleSelect, selected }: Con
       )}
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <div className="flex items-start justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-2" {...dragHandle}>
+          <div className="flex min-w-0 items-center gap-1">
+            {draggable && <GripVertical size={13} className="shrink-0 text-ink-muted" />}
             <TypeBadge type={entry.type} />
             <SourceTag source={entry.source} homebrew={entry.homebrew} />
           </div>
@@ -67,7 +87,26 @@ export function ContentCard({ entry, dragHandle, onToggleSelect, selected }: Con
           </button>
         </div>
         <h3 className="mt-1.5 w-full truncate font-medium text-ink" title={entry.name}>{entry.name}</h3>
-        <p className="mt-0.5 w-full truncate text-sm text-ink-muted" title={entry.summary || undefined}>{entry.summary || '—'}</p>
+        {summaryMaxLines ? (
+          <p
+            className="mt-0.5 w-full break-words text-sm text-ink-muted"
+            style={{
+              display: '-webkit-box',
+              WebkitLineClamp: summaryMaxLines,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden'
+            }}
+          >
+            {entry.summary || '—'}
+          </p>
+        ) : (
+          <p
+            className="mt-0.5 w-full truncate text-sm text-ink-muted"
+            title={entry.summary || undefined}
+          >
+            {entry.summary || '—'}
+          </p>
+        )}
       </div>
     </div>
   )

@@ -20,7 +20,12 @@ export default defineConfig({
     },
     plugins: [react()],
     define: {
-      __APP_VERSION__: JSON.stringify(version)
+      __APP_VERSION__: JSON.stringify(version),
+      // Some npm packages (e.g. react-draggable, used by react-grid-layout)
+      // reference process.env directly, assuming a bundler-provided Node
+      // shim. The renderer has no Node globals (nodeIntegration: false), so
+      // without this it throws "process is not defined" at runtime.
+      'process.env': {}
     }
   }
 })
