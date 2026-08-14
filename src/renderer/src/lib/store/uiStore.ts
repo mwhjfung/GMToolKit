@@ -49,6 +49,14 @@ interface UiState {
   /** Content ids shown in *this* window, only meaningful when this renderer is a panel window. */
   panelWindowIds: string[]
   setPanelWindowIds: (ids: string[]) => void
+  /**
+   * True when this renderer IS a popped-out panel window (resolved once at
+   * startup via `window.dmc.panel.isPanelWindow()`). A panel window has no
+   * `DetailDrawer` and must never try to spawn another panel window — it can
+   * only add to its own local `panelWindowIds`.
+   */
+  isPanelWindowRenderer: boolean
+  setIsPanelWindowRenderer: (v: boolean) => void
   /** Id of the active pop-out panel window, if any. Sticky: once set, further opens route there. */
   activePopoutId: number | null
   /** Content ids currently shown in the active popout window. */
@@ -110,6 +118,14 @@ export const useUiStore = create<UiState>((set, get) => ({
   maxPanelColumns: 2,
   drawerToast: null,
   openDrawer: async (id) => {
+    if (get().isPanelWindowRenderer) {
+      // Already inside a popped-out panel window — there's no DetailDrawer
+      // to route to and it must never spawn another panel window. Just add
+      // the id to this window's own local stack.
+      const ids = get().panelWindowIds.includes(id) ? get().panelWindowIds : [...get().panelWindowIds, id]
+      set({ panelWindowIds: ids })
+      return
+    }
     const alwaysNew = useSettingsStore.getState().alwaysOpenInNewWindow
     const active = get().activePopoutId
     if (alwaysNew || active != null) {
@@ -152,9 +168,16 @@ export const useUiStore = create<UiState>((set, get) => ({
       window.dmc.panel.broadcast('panel:show', ids)
       return
     }
-    const winId = await window.dmc.panel.open()
-    set({ activePopoutId: winId, popoutIds: [id] })
-    window.dmc.panel.broadcast('panel:show', [id])
+    try {
+      const winId = await window.dmc.panel.open()
+      set({ activePopoutId: winId, popoutIds: [id] })
+      window.dmc.panel.broadcast('panel:show', [id])
+    } catch (err) {
+      // Window creation failed — don't leave the panel removed from the UI
+      // with no recovery, put it back as its own column in the local drawer.
+      console.error('Failed to open panel window', err)
+      set((s) => ({ drawerColumns: [[id], ...s.drawerColumns] }))
+    }
   },
   closePanel: (id) =>
     set((s) => ({
@@ -170,6 +193,8 @@ export const useUiStore = create<UiState>((set, get) => ({
   dismissToast: () => set({ drawerToast: null }),
   panelWindowIds: [],
   setPanelWindowIds: (ids) => set({ panelWindowIds: ids }),
+  isPanelWindowRenderer: false,
+  setIsPanelWindowRenderer: (v) => set({ isPanelWindowRenderer: v }),
   activePopoutId: null,
   popoutIds: [],
 

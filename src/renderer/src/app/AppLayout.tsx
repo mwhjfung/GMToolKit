@@ -100,6 +100,19 @@ export function AppLayout(): JSX.Element {
     })
   }, [])
 
+  // A panel window's `panel:show` listener may not exist yet at the moment
+  // uiStore fires its initial broadcast right after `window.dmc.panel.open()`
+  // resolves — that broadcast can be lost. Whenever a panel window's
+  // listener actually comes up (first open, or a later reload), it asks for
+  // the current state via `panel:ready`; answer with whatever is currently
+  // in `popoutIds` so it always ends up populated correctly.
+  useEffect(() => {
+    return window.dmc.panel.onBroadcast('panel:ready', () => {
+      const ids = useUiStore.getState().popoutIds
+      window.dmc.panel.broadcast('panel:show', ids)
+    })
+  }, [])
+
   // Content edited/created/deleted in the panel popout window doesn't touch
   // this window's Zustand cache (Dexie is shared, in-memory state isn't) —
   // refetch here whenever the other window broadcasts a change.

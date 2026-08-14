@@ -18,12 +18,25 @@ let mainWindow: BrowserWindow | null = null
 
 const panelWindows = new Map<number, BrowserWindow>()
 
+// Channels a renderer is allowed to relay to other windows via `panel:broadcast`.
+// Without this allowlist, any renderer could impersonate any IPC channel name
+// (e.g. `updater:status`) since the relay forwards the payload verbatim.
+const ALLOWED_BROADCAST_CHANNELS = ['panel:show', 'panel:closed', 'content:changed', 'panel:ready']
+
 function broadcast(channel: string, senderId: number | null, payload: unknown): void {
-  if (mainWindow && mainWindow.webContents.id !== senderId) {
+  if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents.id !== senderId) {
     mainWindow.webContents.send(channel, payload)
   }
   for (const [id, w] of panelWindows) {
-    if (id !== senderId) w.webContents.send(channel, payload)
+    if (id === senderId) continue
+    // A window can be destroyed (closed) without its `closed` handler having
+    // run yet, or the map entry can lag briefly — never let a stale/destroyed
+    // window's webContents.send throw and abort the loop for other windows.
+    if (w.isDestroyed()) {
+      panelWindows.delete(id)
+      continue
+    }
+    w.webContents.send(channel, payload)
   }
 }
 
@@ -46,9 +59,18 @@ function createPanelWindow(): BrowserWindow {
     }
   })
 
+  // Capture the id now, before it's ever possible for `closed` to fire.
+  // Accessing `win.webContents` *inside* the `closed` handler throws
+  // ("Object has been destroyed") because WebContents is already torn down
+  // by the time `closed` fires — and since Electron event emitters don't
+  // propagate listener exceptions as crashes, that throw would be silently
+  // swallowed, leaving a stale entry in `panelWindows` forever and breaking
+  // every later broadcast.
+  const id = win.webContents.id
+  panelWindows.set(id, win)
+
   win.on('ready-to-show', () => win.show())
   win.on('closed', () => {
-    const id = win.webContents.id
     panelWindows.delete(id)
     broadcast('panel:closed', null, id)
   })
@@ -64,7 +86,6 @@ function createPanelWindow(): BrowserWindow {
     win.loadFile(join(__dirname, '../renderer/index.html'), { hash: '/panel' })
   }
 
-  panelWindows.set(win.webContents.id, win)
   return win
 }
 
@@ -138,6 +159,7 @@ function registerIpc(): void {
   ipcMain.handle('panel:isPanelWindow', (e) => panelWindows.has(e.sender.id))
 
   ipcMain.on('panel:broadcast', (e, channel: string, payload: unknown) => {
+    if (!ALLOWED_BROADCAST_CHANNELS.includes(channel)) return
     broadcast(channel, e.sender.id, payload)
   })
 }
@@ -157,7 +179,10 @@ app.whenReady().then(() => {
   setupUpdater(win)
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    // Check the main window specifically, not "any window" — a panel window
+    // can still be open (main window closed) on macOS, and clicking the dock
+    // icon should still recreate the main window in that case.
+    if (mainWindow == null) createWindow()
   })
 })
 
