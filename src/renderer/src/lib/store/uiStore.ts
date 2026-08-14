@@ -45,6 +45,9 @@ interface UiState {
   maxPanelColumns: number
   /** Transient message shown when there's no room left for another panel. */
   drawerToast: string | null
+  /** Content ids shown in *this* window, only meaningful when this renderer is a panel window. */
+  panelWindowIds: string[]
+  setPanelWindowIds: (ids: string[]) => void
   openDrawer: (id: string) => void
   closePanel: (id: string) => void
   closeDrawer: () => void
@@ -127,6 +130,8 @@ export const useUiStore = create<UiState>((set) => ({
       return { maxPanelColumns: n, drawerColumns: repack(s.drawerColumns, n) }
     }),
   dismissToast: () => set({ drawerToast: null }),
+  panelWindowIds: [],
+  setPanelWindowIds: (ids) => set({ panelWindowIds: ids }),
 
   appToast: null,
   showToast: (msg) => set({ appToast: msg }),
