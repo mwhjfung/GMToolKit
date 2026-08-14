@@ -312,11 +312,20 @@ function SortablePanel({
   // the closest DOM-observable proxy for "drag it past the OS window edge",
   // since the browser stops delivering pointer events once the pointer
   // actually leaves the window.
+  const poppedRef = useRef(false)
   useEffect(() => {
     if (!isDragging) return
+    poppedRef.current = false
     const EDGE = 8
     const onMove = (e: PointerEvent): void => {
+      if (poppedRef.current) return
       if (e.clientX <= EDGE || e.clientX >= window.innerWidth - EDGE) {
+        // Flip the guard before the async call starts — window.dmc.panel.open()
+        // is a real IPC round trip, and further pointermove events can land in
+        // the edge band before it resolves. Without this, each of those events
+        // would independently see activePopoutId still null and spawn its own
+        // orphaned OS window.
+        poppedRef.current = true
         void openInNewWindow(id)
       }
     }
