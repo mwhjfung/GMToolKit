@@ -503,10 +503,17 @@ export const useContentStore = create<ContentState>((set, get) => ({
  */
 export function subscribeContentSync(): () => void {
   return window.dmc.panel.onBroadcast('content:changed', async () => {
-    const items = await getAllContent()
-    useContentStore.setState((s) => ({
+    // Refetch sources too, the same way load() does — a change in the other
+    // window may have created a brand-new custom Source (via ensureSource),
+    // persisted to SOURCES_KEY. Reusing this window's stale s.sources here
+    // would filter the newly-synced entry OUT of visibleItems until the
+    // next manual reload.
+    const [items, stored] = await Promise.all([getAllContent(), getSetting<Source[]>(SOURCES_KEY)])
+    const sources = stored ?? []
+    useContentStore.setState({
       items,
-      visibleItems: computeVisible(items, s.sources)
-    }))
+      sources,
+      visibleItems: computeVisible(items, sources)
+    })
   })
 }
