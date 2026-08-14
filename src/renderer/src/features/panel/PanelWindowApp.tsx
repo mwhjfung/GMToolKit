@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { X } from 'lucide-react'
 import { ContentDetail } from '@/components/ContentDetail'
-import { useContentStore } from '@/lib/store/contentStore'
+import { useContentStore, subscribeContentSync } from '@/lib/store/contentStore'
 import { useUiStore } from '@/lib/store/uiStore'
 
 export function PanelWindowApp(): JSX.Element {
@@ -13,6 +13,13 @@ export function PanelWindowApp(): JSX.Element {
   useEffect(() => {
     void loadContent()
   }, [loadContent])
+
+  // Content edited/created/deleted in the main window doesn't touch this
+  // window's Zustand cache (Dexie is shared, in-memory state isn't) —
+  // refetch here whenever the main window broadcasts a change.
+  useEffect(() => {
+    return subscribeContentSync()
+  }, [])
 
   useEffect(() => {
     return window.dmc.panel.onBroadcast('panel:show', (payload) => {

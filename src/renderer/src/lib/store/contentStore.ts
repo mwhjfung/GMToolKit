@@ -273,6 +273,7 @@ export const useContentStore = create<ContentState>((set, get) => ({
       const items = exists ? s.items.map((i) => (i.id === e.id ? e : i)) : [...s.items, e]
       return { items, sources, visibleItems: computeVisible(items, sources) }
     })
+    window.dmc.panel.broadcast('content:changed', e.id)
   },
 
   duplicate: async (entry) => {
@@ -300,6 +301,7 @@ export const useContentStore = create<ContentState>((set, get) => ({
       return { items, pinnedIds, visibleItems: computeVisible(items, s.sources) }
     })
     persistPins(pinnedIds)
+    window.dmc.panel.broadcast('content:changed', id)
   },
 
   campaignSources: () => {
@@ -490,3 +492,21 @@ export const useContentStore = create<ContentState>((set, get) => ({
 
   isPinned: (id) => get().pinnedIds.includes(id)
 }))
+
+/**
+ * Subscribe to content edits made in the *other* window (main <-> panel
+ * popout). Dexie/IndexedDB is shared across windows, but each renderer has
+ * its own in-memory Zustand cache, so writes there don't otherwise reach
+ * here. Re-fetches the full list rather than patching a single id — writes
+ * are infrequent (manual GM edits), and this avoids a second code path that
+ * could drift from getAllContent()'s exact shape. Returns an unsubscribe fn.
+ */
+export function subscribeContentSync(): () => void {
+  return window.dmc.panel.onBroadcast('content:changed', async () => {
+    const items = await getAllContent()
+    useContentStore.setState((s) => ({
+      items,
+      visibleItems: computeVisible(items, s.sources)
+    }))
+  })
+}

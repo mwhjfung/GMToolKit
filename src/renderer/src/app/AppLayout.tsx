@@ -7,7 +7,7 @@ import { Toast } from '@/components/Toast'
 import { VoiceDock } from '@/features/voice/VoiceDock'
 import { EntryEditor } from '@/features/library/EntryEditor'
 import { ImportDialog } from '@/features/library/ImportDialog'
-import { useContentStore } from '@/lib/store/contentStore'
+import { useContentStore, subscribeContentSync } from '@/lib/store/contentStore'
 import { useVoiceStore } from '@/lib/store/voiceStore'
 import { useSettingsStore } from '@/lib/store/settingsStore'
 import { useCombatStore } from '@/lib/store/combatStore'
@@ -98,6 +98,13 @@ export function AppLayout(): JSX.Element {
         useUiStore.setState({ activePopoutId: null, popoutIds: [] })
       }
     })
+  }, [])
+
+  // Content edited/created/deleted in the panel popout window doesn't touch
+  // this window's Zustand cache (Dexie is shared, in-memory state isn't) —
+  // refetch here whenever the other window broadcasts a change.
+  useEffect(() => {
+    return subscribeContentSync()
   }, [])
 
   useEffect(() => {
