@@ -16,6 +16,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Markdown } from '@/components/Markdown'
+import { LinkableTextarea } from '@/components/LinkableTextarea'
 import { TagSelect } from '@/components/TagSelect'
 import { CommaListInput } from '@/components/CommaListInput'
 import { useContentStore, sourceInCampaign } from '@/lib/store/contentStore'
@@ -80,10 +81,10 @@ function MarkdownField({
           <Markdown>{value || '_Nothing yet_'}</Markdown>
         </div>
       ) : (
-        <textarea
+        <LinkableTextarea
           className="input min-h-[110px] font-mono text-[13px]"
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={onChange}
         />
       )}
     </div>
@@ -147,11 +148,11 @@ function StatblocksField({
               <Trash2 size={14} />
             </button>
           </div>
-          <textarea
+          <LinkableTextarea
             className="input min-h-[56px]"
             placeholder="Description"
             value={entry.desc}
-            onChange={(e) => update(i, { desc: e.target.value })}
+            onChange={(v) => update(i, { desc: v })}
           />
         </div>
       ))}
@@ -368,11 +369,11 @@ function FieldRenderer({
       )
     case 'textarea':
       return (
-        <textarea
+        <LinkableTextarea
           className="input min-h-[64px]"
           placeholder={field.placeholder}
           value={(value as string) ?? ''}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={onChange}
         />
       )
     case 'number':
