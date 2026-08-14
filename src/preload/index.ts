@@ -22,6 +22,19 @@ const dmc = {
       return () => ipcRenderer.removeListener('updater:status', fn)
     }
   },
+  panel: {
+    open: (): Promise<number> => ipcRenderer.invoke('panel:open'),
+    close: (id: number): Promise<void> => ipcRenderer.invoke('panel:close', id),
+    isPanelWindow: (): Promise<boolean> => ipcRenderer.invoke('panel:isPanelWindow'),
+    broadcast: (channel: string, payload: unknown): void => {
+      ipcRenderer.send('panel:broadcast', channel, payload)
+    },
+    onBroadcast: (channel: string, cb: (payload: unknown) => void): (() => void) => {
+      const fn = (_e: Electron.IpcRendererEvent, payload: unknown): void => cb(payload)
+      ipcRenderer.on(channel, fn)
+      return () => ipcRenderer.removeListener(channel, fn)
+    }
+  },
   platform: process.platform
 }
 

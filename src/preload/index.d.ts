@@ -21,6 +21,13 @@ export interface DmcApi {
     install: (releaseUrl?: string) => Promise<void>
     onStatus: (cb: (status: UpdaterStatus) => void) => () => void
   }
+  panel: {
+    open: () => Promise<number>
+    close: (id: number) => Promise<void>
+    isPanelWindow: () => Promise<boolean>
+    broadcast: (channel: string, payload: unknown) => void
+    onBroadcast: (channel: string, cb: (payload: unknown) => void) => () => void
+  }
   platform: string
 }
 

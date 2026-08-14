@@ -16,6 +16,58 @@ if (!app.requestSingleInstanceLock()) {
 
 let mainWindow: BrowserWindow | null = null
 
+const panelWindows = new Map<number, BrowserWindow>()
+
+function broadcast(channel: string, senderId: number | null, payload: unknown): void {
+  if (mainWindow && mainWindow.webContents.id !== senderId) {
+    mainWindow.webContents.send(channel, payload)
+  }
+  for (const [id, w] of panelWindows) {
+    if (id !== senderId) w.webContents.send(channel, payload)
+  }
+}
+
+function createPanelWindow(): BrowserWindow {
+  const win = new BrowserWindow({
+    width: 420,
+    height: 640,
+    minWidth: 320,
+    minHeight: 280,
+    show: false,
+    backgroundColor: '#140a13',
+    autoHideMenuBar: true,
+    title: 'GM Toolkit',
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      sandbox: false,
+      contextIsolation: true,
+      nodeIntegration: false,
+      spellcheck: false
+    }
+  })
+
+  win.on('ready-to-show', () => win.show())
+  win.on('closed', () => {
+    const id = win.webContents.id
+    panelWindows.delete(id)
+    broadcast('panel:closed', null, id)
+  })
+  win.webContents.setWindowOpenHandler((details) => {
+    shell.openExternal(details.url)
+    return { action: 'deny' }
+  })
+
+  const rendererUrl = process.env['ELECTRON_RENDERER_URL']
+  if (rendererUrl) {
+    win.loadURL(`${rendererUrl}#/panel`)
+  } else {
+    win.loadFile(join(__dirname, '../renderer/index.html'), { hash: '/panel' })
+  }
+
+  panelWindows.set(win.webContents.id, win)
+  return win
+}
+
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
     width: 1440,
@@ -75,6 +127,18 @@ function registerIpc(): void {
     )
     if (!res.ok) throw new Error(`D&D Beyond responded ${res.status}`)
     return res.json()
+  })
+
+  ipcMain.handle('panel:open', () => createPanelWindow().webContents.id)
+
+  ipcMain.handle('panel:close', (_e, id: number) => {
+    panelWindows.get(id)?.close()
+  })
+
+  ipcMain.handle('panel:isPanelWindow', (e) => panelWindows.has(e.sender.id))
+
+  ipcMain.on('panel:broadcast', (e, channel: string, payload: unknown) => {
+    broadcast(channel, e.sender.id, payload)
   })
 }
 
