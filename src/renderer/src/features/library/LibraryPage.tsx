@@ -75,10 +75,14 @@ export function LibraryPage(): JSX.Element {
   // "/" focuses search
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
-      if (e.key === '/' && document.activeElement?.tagName !== 'INPUT') {
-        e.preventDefault()
-        searchRef.current?.focus()
-      }
+      if (e.key !== '/') return
+      const el = document.activeElement as HTMLElement | null
+      const isTypingTarget =
+        el?.tagName === 'INPUT' || el?.tagName === 'TEXTAREA' || el?.isContentEditable === true
+      const modalOpen = useUiStore.getState().editor.kind !== 'closed'
+      if (isTypingTarget || modalOpen) return
+      e.preventDefault()
+      searchRef.current?.focus()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
