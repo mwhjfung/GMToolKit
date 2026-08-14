@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { ContentEntry } from '@/types/content'
+import { nextDuplicateName } from '@/lib/templates/schemas'
 import {
   getAllContent,
   putContent,
@@ -134,6 +135,7 @@ interface ContentState {
   /** Remove all SRD content and remember that choice so it doesn't come back on next launch. */
   removeSrd: () => Promise<void>
   upsert: (entry: ContentEntry) => Promise<void>
+  duplicate: (entry: ContentEntry) => Promise<ContentEntry>
   remove: (id: string) => Promise<void>
   /** Sources visible in the active campaign, in creation order. */
   campaignSources: () => Source[]
@@ -271,6 +273,23 @@ export const useContentStore = create<ContentState>((set, get) => ({
       const items = exists ? s.items.map((i) => (i.id === e.id ? e : i)) : [...s.items, e]
       return { items, sources, visibleItems: computeVisible(items, sources) }
     })
+  },
+
+  duplicate: async (entry) => {
+    const siblingNames = get()
+      .items.filter((i) => i.type === entry.type)
+      .map((i) => i.name)
+    const ts = Date.now()
+    const copy: ContentEntry = {
+      ...entry,
+      id: `custom:${crypto.randomUUID()}`,
+      source: 'custom',
+      name: nextDuplicateName(siblingNames, entry.name),
+      createdAt: ts,
+      updatedAt: ts
+    }
+    await get().upsert(copy)
+    return copy
   },
 
   remove: async (id) => {

@@ -299,6 +299,29 @@ const uuid = (): string =>
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`
 
+/**
+ * Given the names of an entry's siblings (e.g. same-type content) and the
+ * name being duplicated, returns the next "Base N" name. Strips any existing
+ * trailing " N" from the source name first, so duplicating a duplicate
+ * increments cleanly instead of stacking numbers.
+ */
+export function nextDuplicateName(existingNames: string[], name: string): string {
+  const trimmed = name.trim()
+  const sourceMatch = trimmed.match(/^(.*)\s+(\d+)$/)
+  const base = sourceMatch ? sourceMatch[1] : trimmed
+  const baseLower = base.toLowerCase()
+
+  let max = 1
+  for (const n of existingNames) {
+    const m = n.trim().match(/^(.*)\s+(\d+)$/)
+    const nBase = (m ? m[1] : n.trim()).toLowerCase()
+    if (nBase !== baseLower) continue
+    const num = m ? parseInt(m[2], 10) : 1
+    if (num > max) max = num
+  }
+  return `${base} ${max + 1}`
+}
+
 export function makeNewEntry(type: ContentType): ContentEntry {
   const ts = Date.now()
   const base = {

@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
-import { X, Pin, Pencil, Trash2, GripVertical } from 'lucide-react'
+import { X, Pin, Pencil, Trash2, GripVertical, Copy } from 'lucide-react'
 import {
   DndContext,
   closestCorners,
@@ -304,6 +304,7 @@ function SortablePanel({
   const pinned = useContentStore((s) => (entry ? s.pinnedIds.includes(entry.id) : false))
   const togglePin = useContentStore((s) => s.togglePin)
   const remove = useContentStore((s) => s.remove)
+  const duplicate = useContentStore((s) => s.duplicate)
   const openEdit = useUiStore((s) => s.openEdit)
 
   if (!entry) return null
@@ -338,6 +339,17 @@ function SortablePanel({
           )}
         </div>
         <div className="flex items-center gap-1">
+          <button
+            type="button"
+            className="icon-btn"
+            title="Duplicate"
+            onClick={async () => {
+              const copy = await duplicate(entry)
+              openEdit(copy)
+            }}
+          >
+            <Copy size={15} />
+          </button>
           {entry.source === 'custom' && (
             <>
               <button type="button" className="icon-btn" title="Edit" onClick={() => openEdit(entry)}>
