@@ -340,6 +340,24 @@ function ContentSharingSection(): JSX.Element {
   )
 }
 
+function PanelBehaviorSection(): JSX.Element {
+  const alwaysNewWindow = useSettingsStore((s) => s.alwaysOpenInNewWindow)
+  const setAlwaysNewWindow = useSettingsStore((s) => s.setAlwaysOpenInNewWindow)
+  return (
+    <Section title="Panel behavior">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p className="text-sm text-ink">Always open panels in a new window</p>
+          <p className="mt-0.5 text-xs text-ink-muted">
+            Every time you open an NPC, item, or other entry, it opens in its own window instead of the side panel.
+          </p>
+        </div>
+        <Switch checked={alwaysNewWindow} onChange={setAlwaysNewWindow} />
+      </div>
+    </Section>
+  )
+}
+
 function DataSection(): JSX.Element {
   const loadContent = useContentStore((s) => s.load)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -483,6 +501,7 @@ export function SettingsPage(): JSX.Element {
         <KeywordFeedSection />
         <LearnedCorrectionsSection />
         <ContentSharingSection />
+        <PanelBehaviorSection />
         <LlmSection />
         <DataSection />
       </div>

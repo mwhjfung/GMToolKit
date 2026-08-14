@@ -18,6 +18,8 @@ interface SettingsState {
   llmTemperature: number
   /** When on, sources can be shared across campaigns (campaign picker appears). */
   shareCustomContent: boolean
+  /** When on, opening any detail panel always pops it into a separate window. */
+  alwaysOpenInNewWindow: boolean
   themeMode: ThemeMode
   load: () => Promise<void>
   setKey: (key: string) => Promise<void>
@@ -25,6 +27,7 @@ interface SettingsState {
   setLlmModel: (model: string) => void
   setLlmTemperature: (t: number) => void
   setShareCustomContent: (v: boolean) => void
+  setAlwaysOpenInNewWindow: (v: boolean) => void
   setThemeMode: (m: ThemeMode) => void
 }
 
@@ -37,14 +40,16 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   llmModel: DEFAULT_MODEL,
   llmTemperature: 0.7,
   shareCustomContent: false,
+  alwaysOpenInNewWindow: false,
   themeMode: 'dark',
 
   load: async () => {
-    const [key, model, temp, share, themeMode] = await Promise.all([
+    const [key, model, temp, share, alwaysNewWindow, themeMode] = await Promise.all([
       window.dmc.secrets.get(KEY_NAME),
       getSetting<string>('llmModel'),
       getSetting<number>('llmTemperature'),
       getSetting<boolean>('shareCustomContent'),
+      getSetting<boolean>('alwaysOpenInNewWindow'),
       getSetting<ThemeMode>('themeMode')
     ])
     const m = themeMode ?? 'dark'
@@ -55,6 +60,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       llmModel: model ?? DEFAULT_MODEL,
       llmTemperature: temp ?? 0.7,
       shareCustomContent: share ?? false,
+      alwaysOpenInNewWindow: alwaysNewWindow ?? false,
       themeMode: m
     })
   },
@@ -82,6 +88,11 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   setShareCustomContent: (v) => {
     set({ shareCustomContent: v })
     void setSetting('shareCustomContent', v)
+  },
+
+  setAlwaysOpenInNewWindow: (v) => {
+    set({ alwaysOpenInNewWindow: v })
+    void setSetting('alwaysOpenInNewWindow', v)
   },
 
   setThemeMode: (m) => {
