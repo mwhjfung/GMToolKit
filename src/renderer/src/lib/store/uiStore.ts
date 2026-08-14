@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { ContentEntry, ContentType } from '@/types/content'
 import { getSetting, setSetting } from '@/lib/db/content'
+import { useSettingsStore } from './settingsStore'
 
 /** Most detail panels that can stack vertically in one column. */
 export const MAX_PANELS_PER_COLUMN = 2
@@ -48,7 +49,13 @@ interface UiState {
   /** Content ids shown in *this* window, only meaningful when this renderer is a panel window. */
   panelWindowIds: string[]
   setPanelWindowIds: (ids: string[]) => void
-  openDrawer: (id: string) => void
+  /** Id of the active pop-out panel window, if any. Sticky: once set, further opens route there. */
+  activePopoutId: number | null
+  /** Content ids currently shown in the active popout window. */
+  popoutIds: string[]
+  openDrawer: (id: string) => Promise<void>
+  /** Explicitly pop a panel out of the local drawer into its own window. */
+  openInNewWindow: (id: string) => Promise<void>
   closePanel: (id: string) => void
   closeDrawer: () => void
   /** Replace the column layout (used by drag-to-rearrange). */
@@ -98,11 +105,25 @@ interface UiState {
   loadUi: () => Promise<void>
 }
 
-export const useUiStore = create<UiState>((set) => ({
+export const useUiStore = create<UiState>((set, get) => ({
   drawerColumns: [],
   maxPanelColumns: 2,
   drawerToast: null,
-  openDrawer: (id) =>
+  openDrawer: async (id) => {
+    const alwaysNew = useSettingsStore.getState().alwaysOpenInNewWindow
+    const active = get().activePopoutId
+    if (alwaysNew || active != null) {
+      if (active == null) {
+        const winId = await window.dmc.panel.open()
+        set({ activePopoutId: winId, popoutIds: [id] })
+        window.dmc.panel.broadcast('panel:show', [id])
+        return
+      }
+      const ids = get().popoutIds.includes(id) ? get().popoutIds : [...get().popoutIds, id]
+      set({ popoutIds: ids })
+      window.dmc.panel.broadcast('panel:show', ids)
+      return
+    }
     set((s) => {
       if (s.drawerColumns.some((c) => c.includes(id))) return s // already open
       const cols = s.drawerColumns.map((c) => [...c])
@@ -117,7 +138,24 @@ export const useUiStore = create<UiState>((set) => ({
         }
       }
       return { drawerToast: PANEL_TOO_MANY_MESSAGE }
-    }),
+    })
+  },
+  openInNewWindow: async (id) => {
+    set((s) => ({
+      drawerColumns: s.drawerColumns.map((c) => c.filter((p) => p !== id)).filter((c) => c.length > 0)
+    }))
+    const active = get().activePopoutId
+    if (active != null) {
+      // A popout is already open (sticky) — target it instead of spawning another.
+      const ids = get().popoutIds.includes(id) ? get().popoutIds : [...get().popoutIds, id]
+      set({ popoutIds: ids })
+      window.dmc.panel.broadcast('panel:show', ids)
+      return
+    }
+    const winId = await window.dmc.panel.open()
+    set({ activePopoutId: winId, popoutIds: [id] })
+    window.dmc.panel.broadcast('panel:show', [id])
+  },
   closePanel: (id) =>
     set((s) => ({
       drawerColumns: s.drawerColumns.map((c) => c.filter((p) => p !== id)).filter((c) => c.length > 0)
@@ -132,6 +170,8 @@ export const useUiStore = create<UiState>((set) => ({
   dismissToast: () => set({ drawerToast: null }),
   panelWindowIds: [],
   setPanelWindowIds: (ids) => set({ panelWindowIds: ids }),
+  activePopoutId: null,
+  popoutIds: [],
 
   appToast: null,
   showToast: (msg) => set({ appToast: msg }),

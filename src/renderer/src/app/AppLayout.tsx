@@ -90,6 +90,16 @@ export function AppLayout(): JSX.Element {
     return () => window.removeEventListener('keydown', handle)
   }, [openSearch])
 
+  // Clear sticky popout routing once the popout window it points at closes.
+  useEffect(() => {
+    return window.dmc.panel.onBroadcast('panel:closed', (closedId) => {
+      const s = useUiStore.getState()
+      if (s.activePopoutId === closedId) {
+        useUiStore.setState({ activePopoutId: null, popoutIds: [] })
+      }
+    })
+  }, [])
+
   useEffect(() => {
     void (async () => {
       // Campaigns, then that campaign's sessions, so the per-session stores

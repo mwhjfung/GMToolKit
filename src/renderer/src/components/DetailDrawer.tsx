@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
-import { X, Pin, Pencil, Trash2, GripVertical, Copy } from 'lucide-react'
+import { X, Pin, Pencil, Trash2, GripVertical, Copy, ExternalLink } from 'lucide-react'
 import {
   DndContext,
   closestCorners,
@@ -306,6 +306,23 @@ function SortablePanel({
   const remove = useContentStore((s) => s.remove)
   const duplicate = useContentStore((s) => s.duplicate)
   const openEdit = useUiStore((s) => s.openEdit)
+  const openInNewWindow = useUiStore((s) => s.openInNewWindow)
+
+  // Dragging a panel to the edge of the window's content area pops it out —
+  // the closest DOM-observable proxy for "drag it past the OS window edge",
+  // since the browser stops delivering pointer events once the pointer
+  // actually leaves the window.
+  useEffect(() => {
+    if (!isDragging) return
+    const EDGE = 8
+    const onMove = (e: PointerEvent): void => {
+      if (e.clientX <= EDGE || e.clientX >= window.innerWidth - EDGE) {
+        void openInNewWindow(id)
+      }
+    }
+    window.addEventListener('pointermove', onMove)
+    return () => window.removeEventListener('pointermove', onMove)
+  }, [isDragging, id, openInNewWindow])
 
   if (!entry) return null
 
@@ -329,6 +346,14 @@ function SortablePanel({
             {...listeners}
           >
             <GripVertical size={15} />
+          </button>
+          <button
+            type="button"
+            className="icon-btn"
+            title="Open in new window"
+            onClick={() => void openInNewWindow(id)}
+          >
+            <ExternalLink size={15} />
           </button>
           {showCloseAll ? (
             <button type="button" className="text-xs font-medium text-ink-muted hover:text-ink" onClick={onCloseAll}>
