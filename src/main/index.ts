@@ -42,9 +42,9 @@ function broadcast(channel: string, senderId: number | null, payload: unknown): 
 
 function createPanelWindow(): BrowserWindow {
   const win = new BrowserWindow({
-    width: 420,
+    width: 760,
     height: 640,
-    minWidth: 320,
+    minWidth: 480,
     minHeight: 280,
     show: false,
     backgroundColor: '#140a13',

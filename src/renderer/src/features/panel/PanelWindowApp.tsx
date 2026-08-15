@@ -63,33 +63,37 @@ export function PanelWindowApp(): JSX.Element {
   }, [setPanelWindowIds])
 
   return (
-    <div className="flex h-screen flex-col divide-y divide-border bg-surface text-ink">
+    <div className="h-screen overflow-y-auto bg-surface text-ink">
       {ids.length === 0 && (
-        <div className="flex flex-1 items-center justify-center text-sm text-ink-muted">
+        <div className="flex h-full items-center justify-center text-sm text-ink-muted">
           Nothing open
         </div>
       )}
-      {ids.map((id) => {
-        const entry = items.find((i) => i.id === id)
-        if (!entry) return null
-        return (
-          <div key={id} className="flex min-h-0 flex-1 flex-col">
-            <div className="flex items-center justify-end border-b border-border px-2 py-1.5">
-              <button
-                type="button"
-                className="icon-btn"
-                title="Close"
-                onClick={() => setPanelWindowIds(ids.filter((i) => i !== id))}
-              >
-                <X size={16} />
-              </button>
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto p-4">
-              <ContentDetail entry={entry} />
-            </div>
-          </div>
-        )
-      })}
+      {ids.length > 0 && (
+        <div className="grid grid-cols-2 divide-x divide-border">
+          {ids.map((id) => {
+            const entry = items.find((i) => i.id === id)
+            if (!entry) return null
+            return (
+              <div key={id} className="flex flex-col border-b border-border">
+                <div className="flex items-center justify-end border-b border-border px-2 py-1.5">
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    title="Close"
+                    onClick={() => setPanelWindowIds(ids.filter((i) => i !== id))}
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+                <div className="p-4">
+                  <ContentDetail entry={entry} />
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
