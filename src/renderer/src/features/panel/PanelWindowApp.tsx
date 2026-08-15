@@ -1,11 +1,60 @@
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { X } from 'lucide-react'
+import type { ContentEntry } from '@/types/content'
 import { ContentDetail } from '@/components/ContentDetail'
 import { useContentStore, subscribeContentSync } from '@/lib/store/contentStore'
 import { useCampaignStore } from '@/lib/store/campaignStore'
 import { useSessionStore } from '@/lib/store/sessionStore'
 import { useSettingsStore } from '@/lib/store/settingsStore'
 import { useUiStore } from '@/lib/store/uiStore'
+
+// Modular card heights: "small" is sized around a compact single-condition
+// card (e.g. Stunned) — a name, a badge, a couple lines of rules text.
+// "large" is exactly two smalls stacked, for statblock-heavy entries
+// (monsters, classes) that need more room. Every card is capped at one of
+// these two heights and scrolls internally past that — cards never grow to
+// fit their content, so the grid stays a predictable two-tier layout.
+const SMALL_CARD_MAX_H = 240
+const LARGE_CARD_MAX_H = SMALL_CARD_MAX_H * 2
+
+function PanelCard({ entry, onClose }: { entry: ContentEntry; onClose: () => void }): JSX.Element {
+  const contentRef = useRef<HTMLDivElement>(null)
+  const [size, setSize] = useState<'small' | 'large'>('small')
+
+  // Content-driven, not type-driven: measure what the entry actually
+  // renders to and promote to "large" only if it doesn't fit in "small".
+  // ResizeObserver re-checks on any reflow (markdown/images loading in),
+  // and scrollHeight reports the true content height regardless of the
+  // max-height clip already applied, so this settles correctly either way.
+  useEffect(() => {
+    const el = contentRef.current
+    if (!el) return
+    const check = (): void => {
+      setSize(el.scrollHeight > SMALL_CARD_MAX_H ? 'large' : 'small')
+    }
+    check()
+    const ro = new ResizeObserver(check)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [entry.id])
+
+  return (
+    <div className="flex flex-col border-b border-border">
+      <div className="flex items-center justify-end border-b border-border px-2 py-1.5">
+        <button type="button" className="icon-btn" title="Close" onClick={onClose}>
+          <X size={16} />
+        </button>
+      </div>
+      <div
+        ref={contentRef}
+        className="overflow-y-auto p-4"
+        style={{ maxHeight: size === 'large' ? LARGE_CARD_MAX_H : SMALL_CARD_MAX_H }}
+      >
+        <ContentDetail entry={entry} />
+      </div>
+    </div>
+  )
+}
 
 export function PanelWindowApp(): JSX.Element {
   const loadContent = useContentStore((s) => s.load)
@@ -75,21 +124,11 @@ export function PanelWindowApp(): JSX.Element {
             const entry = items.find((i) => i.id === id)
             if (!entry) return null
             return (
-              <div key={id} className="flex flex-col border-b border-border">
-                <div className="flex items-center justify-end border-b border-border px-2 py-1.5">
-                  <button
-                    type="button"
-                    className="icon-btn"
-                    title="Close"
-                    onClick={() => setPanelWindowIds(ids.filter((i) => i !== id))}
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-                <div className="p-4">
-                  <ContentDetail entry={entry} />
-                </div>
-              </div>
+              <PanelCard
+                key={id}
+                entry={entry}
+                onClose={() => setPanelWindowIds(ids.filter((i) => i !== id))}
+              />
             )
           })}
         </div>
