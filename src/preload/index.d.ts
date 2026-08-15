@@ -24,6 +24,7 @@ export interface DmcApi {
   panel: {
     open: () => Promise<number>
     close: (id: number) => Promise<void>
+    focus: (id: number) => Promise<void>
     isPanelWindow: () => Promise<boolean>
     broadcast: (channel: string, payload: unknown) => void
     onBroadcast: (channel: string, cb: (payload: unknown) => void) => () => void

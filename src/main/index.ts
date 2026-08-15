@@ -156,6 +156,17 @@ function registerIpc(): void {
     panelWindows.get(id)?.close()
   })
 
+  // Bring a popped-out window forward when content gets routed into it —
+  // without this, sending a card to an already-open-but-backgrounded popout
+  // is silent: nothing visibly changes in the window the user is looking at.
+  ipcMain.handle('panel:focus', (_e, id: number) => {
+    const win = panelWindows.get(id)
+    if (!win || win.isDestroyed()) return
+    if (win.isMinimized()) win.restore()
+    win.show()
+    win.focus()
+  })
+
   ipcMain.handle('panel:isPanelWindow', (e) => panelWindows.has(e.sender.id))
 
   ipcMain.on('panel:broadcast', (e, channel: string, payload: unknown) => {

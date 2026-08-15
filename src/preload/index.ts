@@ -25,6 +25,7 @@ const dmc = {
   panel: {
     open: (): Promise<number> => ipcRenderer.invoke('panel:open'),
     close: (id: number): Promise<void> => ipcRenderer.invoke('panel:close', id),
+    focus: (id: number): Promise<void> => ipcRenderer.invoke('panel:focus', id),
     isPanelWindow: (): Promise<boolean> => ipcRenderer.invoke('panel:isPanelWindow'),
     broadcast: (channel: string, payload: unknown): void => {
       ipcRenderer.send('panel:broadcast', channel, payload)

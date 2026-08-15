@@ -133,11 +133,17 @@ export const useUiStore = create<UiState>((set, get) => ({
         const winId = await window.dmc.panel.open()
         set({ activePopoutId: winId, popoutIds: [id] })
         window.dmc.panel.broadcast('panel:show', [id])
+        void window.dmc.panel.focus(winId)
         return
       }
       const ids = get().popoutIds.includes(id) ? get().popoutIds : [...get().popoutIds, id]
       set({ popoutIds: ids })
       window.dmc.panel.broadcast('panel:show', ids)
+      // The popout may already be open but backgrounded — without bringing
+      // it forward, routing content there is silent from the user's point
+      // of view (they clicked something in the main window and nothing
+      // visibly happened) until they happen to switch to it themselves.
+      void window.dmc.panel.focus(active)
       return
     }
     set((s) => {
