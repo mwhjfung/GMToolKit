@@ -16,7 +16,8 @@ interface PendingLink {
   start: number
   end: number
   text: string
-  rect: DOMRect
+  x: number
+  y: number
 }
 
 /**
@@ -42,22 +43,21 @@ export function LinkableTextarea({
 
   const closePopover = (): void => setPending(null)
 
-  const onMouseUp = (): void => {
+  // Only right-clicking an existing highlight opens the link popover — a
+  // plain drag-to-select shouldn't pop anything up on its own. Right-
+  // clicking inside a selection leaves it intact (standard textarea
+  // behavior); right-clicking outside one collapses it before this fires,
+  // so start === end there and the native context menu is left alone.
+  const onContextMenu = (e: React.MouseEvent<HTMLTextAreaElement>): void => {
     const el = ref.current
     if (!el) return
     const start = el.selectionStart
     const end = el.selectionEnd
-    if (start === end) {
-      setPending(null)
-      return
-    }
+    if (start === end) return
     const text = value.slice(start, end).trim()
-    if (!text || text.length > 80) {
-      setPending(null)
-      return
-    }
-    const rect = el.getBoundingClientRect()
-    setPending({ start, end, text, rect })
+    if (!text || text.length > 80) return
+    e.preventDefault()
+    setPending({ start, end, text, x: e.clientX, y: e.clientY })
     setQuery(text)
   }
 
@@ -106,7 +106,7 @@ export function LinkableTextarea({
         ref={ref}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        onMouseUp={onMouseUp}
+        onContextMenu={onContextMenu}
         className={className}
         placeholder={placeholder}
         rows={rows}
@@ -116,8 +116,8 @@ export function LinkableTextarea({
           ref={popoverRef}
           style={{
             position: 'fixed',
-            top: Math.min(pending.rect.top + 24, window.innerHeight - 280),
-            left: Math.max(8, Math.min(pending.rect.left, window.innerWidth - 264))
+            top: Math.min(pending.y, window.innerHeight - 280),
+            left: Math.max(8, Math.min(pending.x, window.innerWidth - 264))
           }}
           className="panel z-50 w-64 p-2 shadow-2xl"
         >
