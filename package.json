@@ -1,6 +1,6 @@
 {
   "name": "gm-toolkit",
-  "version": "0.5.5",
+  "version": "0.5.6",
   "description": "A local-first desktop toolkit for running tabletop RPG sessions, with a live voice keyword feed.",
   "author": "Michael Fung",
   "license": "MIT",
