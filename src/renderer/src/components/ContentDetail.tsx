@@ -668,6 +668,15 @@ function DetailBody({ entry, hideAddToInitiative }: { entry: ContentEntry; hideA
       return <HomebrewDetail entry={entry} />
     case 'action':
       return <ActionDetail entry={entry} />
+    default: {
+      // Reachable for a persisted entry whose type predates a schema change
+      // (ContentType is a closed union at the TS level, but data on disk
+      // isn't bound by that — the switch above narrows `entry` to `never`
+      // here, hence the cast back) — show something instead of silently
+      // rendering nothing.
+      const raw = entry as ContentEntry
+      return <p className="text-sm text-ink-muted">No display available for content type "{raw.type}".</p>
+    }
   }
 }
 

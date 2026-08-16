@@ -4,7 +4,25 @@ import { cn } from '@/lib/cn'
 
 export function TypeBadge({ type, className }: { type: ContentType; className?: string }): JSX.Element | null {
   if (type === 'homebrew') return null
-  const meta = TYPE_META[type]
+  // `type` is typed as ContentType, but it ultimately comes from persisted
+  // data — an entry saved under an older schema (or copied over from the
+  // pre-rename "DM Command" profile, see dataMigration.ts) can carry a type
+  // value that's since been renamed or dropped. TYPE_META has no entry for
+  // that, so fall back to a plain, icon-less badge instead of crashing the
+  // whole app on render.
+  const meta = TYPE_META[type] as (typeof TYPE_META)[ContentType] | undefined
+  if (!meta) {
+    return (
+      <span
+        className={cn(
+          'inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium bg-surface-2 text-ink-muted',
+          className
+        )}
+      >
+        {type}
+      </span>
+    )
+  }
   const Icon = meta.icon
   return (
     <span
