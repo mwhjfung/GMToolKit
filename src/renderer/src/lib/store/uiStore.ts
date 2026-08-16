@@ -124,6 +124,10 @@ export const useUiStore = create<UiState>((set, get) => ({
       // the id to this window's own local stack.
       const ids = get().panelWindowIds.includes(id) ? get().panelWindowIds : [...get().panelWindowIds, id]
       set({ panelWindowIds: ids })
+      // Tell the main window too — otherwise its `popoutIds` goes stale and
+      // the next card *it* opens here re-broadcasts the old list, silently
+      // dropping this one.
+      window.dmc.panel.broadcast('panel:show', ids)
       return
     }
     const alwaysNew = useSettingsStore.getState().alwaysOpenInNewWindow

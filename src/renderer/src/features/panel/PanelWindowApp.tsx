@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { GripVertical, X } from 'lucide-react'
 import GridLayout, { type Layout, type LayoutItem } from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
@@ -9,7 +9,7 @@ import { useCampaignStore } from '@/lib/store/campaignStore'
 import { useSessionStore } from '@/lib/store/sessionStore'
 import { useSettingsStore } from '@/lib/store/settingsStore'
 import { useUiStore } from '@/lib/store/uiStore'
-import { findFirstOpenSlot, repackByReadingOrder, useContainerSize } from '@/lib/gridPack'
+import { compactColumnStable, findFirstOpenSlot, repackByReadingOrder, useContainerSize } from '@/lib/gridPack'
 
 // Modular card heights: "small" is one grid row, sized around a compact
 // single-condition card (e.g. Stunned) — a name, a badge, a couple lines of
@@ -161,36 +161,53 @@ export function PanelWindowApp(): JSX.Element {
     setSizeById((prev) => (prev.get(id) === h ? prev : new Map(prev).set(id, h)))
   }
 
-  // User-arranged positions, updated on drag. New/resized entries fall into
-  // the first open slot; the rest keep exactly where they were dragged to.
+  // User-arranged positions, updated on drag — and otherwise kept in sync
+  // with `ids`/`sizeById`/`cols` below. This is the single source of truth
+  // fed to GridLayout; nothing derives a separate "display" layout from it.
   const [layout, setLayout] = useState<Layout>([])
 
-  // A column count change (window resized wider/narrower) makes existing x/y
-  // values stale — an item sitting in column 3 is out of bounds once cols
-  // drops to 2. Re-flow into the new column count via the same reading-order
-  // repack a drag uses, rather than a fixed count.
-  const prevColsRef = useRef(cols)
+  // A column count change (window resized) means every row's meaning
+  // changes — 4 cards to a row becomes 3, or 2 — so this fully re-flows in
+  // reading order, same as a drag-stop repack, rather than trying to keep
+  // individual cards in place. That's the behavior a resize should have:
+  // 1 2 3 4          1 2 3          1 2
+  // 5 6 7 8    →      4 5 6    →     3 4
+  // 9 10 11 12        7 8 9          5 6  ...
+  //                   10 11 12
   useEffect(() => {
-    if (prevColsRef.current === cols) return
-    prevColsRef.current = cols
     setLayout((prev) => repackByReadingOrder([...prev], cols))
   }, [cols])
 
-  const layoutById = useMemo(() => new Map(layout.map((l) => [l.i, l])), [layout])
-  const displayLayout = useMemo(() => {
-    const next: LayoutItem[] = []
-    for (const id of ids) {
-      const h = sizeById.get(id) ?? 1
-      const existing = layoutById.get(id)
-      if (existing && existing.h === h) {
-        next.push(existing)
-        continue
+  // Reconciles `layout` against the current ids and size buckets. Closed
+  // cards are dropped and the resulting hole closes via compactColumnStable
+  // — which only ever moves a card sideways if its *own* column is now
+  // completely empty; otherwise it just slides up within that column. So
+  // closing the top of two small cards stacked on top of each other lets
+  // the bottom one rise into its place, without hopping into whatever's
+  // beside it. New or resized cards are then slotted in on top of that via
+  // findFirstOpenSlot, which prefers finishing a column that already has
+  // something in it over starting a fresh one — so a small card added after
+  // a small-then-large pair drops in under the earlier small instead of
+  // jumping past the large one into open space. `cols` is read here but
+  // deliberately not a dependency: a cols change is handled entirely by the
+  // repack effect above, which this would otherwise redundantly re-verify.
+  useEffect(() => {
+    setLayout((prev) => {
+      const idSet = new Set(ids)
+      const survivors = compactColumnStable(prev.filter((l) => idSet.has(l.i)))
+      const next = [...survivors]
+      for (const id of ids) {
+        const h = sizeById.get(id) ?? 1
+        const existing = next.find((l) => l.i === id)
+        if (existing && existing.h === h) continue
+        if (existing) next.splice(next.indexOf(existing), 1)
+        const slot = findFirstOpenSlot(next, cols, 1, h)
+        next.push({ i: id, x: slot.x, y: slot.y, w: 1, h })
       }
-      const slot = findFirstOpenSlot(next, cols, 1, h)
-      next.push({ i: id, x: slot.x, y: slot.y, w: 1, h })
-    }
-    return next
-  }, [ids, layoutById, sizeById, cols])
+      return next
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ids, sizeById])
 
   const openEntries = ids.map((id) => items.find((i) => i.id === id)).filter((e): e is ContentEntry => !!e)
 
@@ -199,35 +216,47 @@ export function PanelWindowApp(): JSX.Element {
       {openEntries.map((entry) => (
         <CardSizeProbe key={entry.id} entry={entry} width={Math.max(0, width / cols - GRID_MARGIN[0])} onMeasured={onMeasured} />
       ))}
-      {ids.length === 0 && (
-        <div className="flex h-full items-center justify-center text-sm text-ink-muted">
-          Nothing open
-        </div>
-      )}
-      {ids.length > 0 && (
-        <div ref={containerRef} className="w-full p-3">
-          {width > 0 && (
-            <GridLayout
-              width={width - GRID_MARGIN[0] * 2}
-              layout={displayLayout}
-              gridConfig={{ cols, rowHeight: ROW_H, margin: GRID_MARGIN, containerPadding: [0, 0], maxRows: Infinity }}
-              dragConfig={{ handle: '.panel-card-drag-handle', cancel: 'button', threshold: 8 }}
-              resizeConfig={{ enabled: false }}
-              autoSize
-              onDragStop={(l) => setLayout(repackByReadingOrder([...l], cols))}
-            >
-              {openEntries.map((entry) => (
-                <div key={entry.id}>
-                  <PanelCard
-                    entry={entry}
-                    onClose={() => setPanelWindowIds(ids.filter((i) => i !== entry.id))}
-                  />
-                </div>
-              ))}
-            </GridLayout>
-          )}
-        </div>
-      )}
+      {/* Mounted unconditionally — even with nothing open yet — so its width
+          (and therefore `cols`) is measured from the start. Gating this on
+          `ids.length > 0` meant the container didn't exist, and `cols` read
+          as 1 (colsFor(0)), until the moment the first card arrived; if that
+          first `panel:show` carried more than one id, they'd all get placed
+          under that stale single-column width, and nothing after would
+          revisit their position unless `cols` itself later changed again. */}
+      <div ref={containerRef} className="w-full p-3">
+        {ids.length === 0 && (
+          <div className="flex h-[calc(100vh-1.5rem)] items-center justify-center text-sm text-ink-muted">
+            Nothing open
+          </div>
+        )}
+        {ids.length > 0 && width > 0 && (
+          <GridLayout
+            width={width - GRID_MARGIN[0] * 2}
+            layout={layout}
+            gridConfig={{ cols, rowHeight: ROW_H, margin: GRID_MARGIN, containerPadding: [0, 0], maxRows: Infinity }}
+            dragConfig={{ handle: '.panel-card-drag-handle', cancel: 'button', threshold: 8 }}
+            resizeConfig={{ enabled: false }}
+            autoSize
+            onDragStop={(l) => setLayout(repackByReadingOrder([...l], cols))}
+          >
+            {openEntries.map((entry) => (
+              <div key={entry.id}>
+                <PanelCard
+                  entry={entry}
+                  onClose={() => {
+                    const next = ids.filter((i) => i !== entry.id)
+                    setPanelWindowIds(next)
+                    // Tell the main window too — otherwise its `popoutIds`
+                    // stays stale and the next card it opens here re-sends
+                    // the full old list, resurrecting this one.
+                    window.dmc.panel.broadcast('panel:show', next)
+                  }}
+                />
+              </div>
+            ))}
+          </GridLayout>
+        )}
+      </div>
     </div>
   )
 }

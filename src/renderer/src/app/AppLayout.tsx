@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import { X, Download, ExternalLink } from 'lucide-react'
 import { Sidebar } from './Sidebar'
@@ -6,7 +6,12 @@ import { DetailDrawer } from '@/components/DetailDrawer'
 import { Toast } from '@/components/Toast'
 import { VoiceDock } from '@/features/voice/VoiceDock'
 import { EntryEditor } from '@/features/library/EntryEditor'
-import { ImportDialog } from '@/features/library/ImportDialog'
+// Document import drags in pdfjs-dist and mammoth (multi-megabyte parsers)
+// that only matter once the user actually opens this dialog — lazy so
+// they're not part of the app's startup bundle.
+const ImportDialog = lazy(() =>
+  import('@/features/library/ImportDialog').then((m) => ({ default: m.ImportDialog }))
+)
 import { useContentStore, subscribeContentSync } from '@/lib/store/contentStore'
 import { useVoiceStore } from '@/lib/store/voiceStore'
 import { useSettingsStore } from '@/lib/store/settingsStore'
@@ -113,6 +118,17 @@ export function AppLayout(): JSX.Element {
     })
   }, [])
 
+  // The panel window closing a card (or adding one via an in-panel link)
+  // only changes *its own* local id list — it broadcasts `panel:show` back
+  // here to report that. Without this, `popoutIds` goes stale, and the next
+  // card opened from the main window re-sends the old full list, silently
+  // resurrecting whatever was just closed there.
+  useEffect(() => {
+    return window.dmc.panel.onBroadcast('panel:show', (ids) => {
+      useUiStore.setState({ popoutIds: ids as string[] })
+    })
+  }, [])
+
   // Content edited/created/deleted in the panel popout window doesn't touch
   // this window's Zustand cache (Dexie is shared, in-memory state isn't) —
   // refetch here whenever the other window broadcasts a change.
@@ -146,7 +162,11 @@ export function AppLayout(): JSX.Element {
         <VoiceDock />
       </div>
       <EntryEditor />
-      {importOpen && <ImportDialog />}
+      {importOpen && (
+        <Suspense fallback={null}>
+          <ImportDialog />
+        </Suspense>
+      )}
       <Toast />
     </div>
   )

@@ -2,7 +2,10 @@ import { create } from 'zustand'
 import type { ContentType } from '@/types/content'
 import type { Session } from '@/types/db'
 import { CaptureEngine } from '@/lib/voice/captureEngine'
-import { loadWhisper, transcribeSamples, type WhisperProgress } from '@/lib/voice/whisperEngine'
+// @huggingface/transformers (the speech model runtime) is a multi-megabyte
+// dependency that only matters once the user actually starts listening —
+// importing it dynamically here keeps it out of the app's startup bundle.
+import type { WhisperProgress } from '@/lib/voice/whisperEngine'
 import { buildKeywordIndex, matchText, normalize, type KeywordIndex } from '@/lib/keywords'
 import { CONTENT_TYPE_LABELS } from '@/types/content'
 import { useContentStore } from './contentStore'
@@ -163,6 +166,7 @@ export const useVoiceStore = create<VoiceState>((set, get) => {
         if (!chunk) break
         let text = ''
         try {
+          const { transcribeSamples } = await import('@/lib/voice/whisperEngine')
           text = await transcribeSamples(chunk)
         } catch {
           continue
@@ -215,6 +219,7 @@ export const useVoiceStore = create<VoiceState>((set, get) => {
       index = buildKeywordIndex(useContentStore.getState().visibleItems, get().aliases)
 
       try {
+        const { loadWhisper } = await import('@/lib/voice/whisperEngine')
         await loadWhisper(undefined, (p: WhisperProgress) => {
           const pct = p.progress ?? (p.total ? ((p.loaded ?? 0) / p.total) * 100 : null)
           set({ modelProgress: pct != null ? Math.round(pct) : null })
